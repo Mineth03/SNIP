@@ -14,35 +14,46 @@ class StatusChip extends StatelessWidget {
     final (color, bg) = _colors(status);
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: SnipSpacing.sm,
-        vertical: SnipSpacing.xs,
+        horizontal: 10,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(SnipSpacing.radiusSm),
+        borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
       ),
       child: Text(
-        bookingStatusLabel(status),
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+        _label(status),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          letterSpacing: 0.2,
+        ),
       ),
     );
+  }
+
+  String _label(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.checkedIn:
+        return 'Arriving';
+      default:
+        return bookingStatusLabel(status);
+    }
   }
 
   (Color, Color) _colors(BookingStatus status) {
     switch (status) {
       case BookingStatus.confirmed:
-        return (SnipColors.primary, SnipColors.primary.withValues(alpha: 0.12));
+        return (const Color(0xFF059669), const Color(0xFFD1FAE5));
       case BookingStatus.checkedIn:
       case BookingStatus.inProgress:
-        return (SnipColors.warning, SnipColors.warning.withValues(alpha: 0.15));
+        return (const Color(0xFFEA580C), const Color(0xFFFFEDD5));
       case BookingStatus.completed:
-        return (SnipColors.success, SnipColors.success.withValues(alpha: 0.12));
+        return (const Color(0xFF0D9488), const Color(0xFFCCFBF1));
       case BookingStatus.cancelled:
       case BookingStatus.noShow:
-        return (SnipColors.error, SnipColors.error.withValues(alpha: 0.12));
+        return (const Color(0xFFDC2626), const Color(0xFFFEE2E2));
       case BookingStatus.pending:
         return (SnipColors.secondaryText, SnipColors.lightGray);
     }

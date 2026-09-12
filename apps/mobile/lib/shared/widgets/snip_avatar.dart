@@ -7,21 +7,25 @@ class SnipAvatar extends StatelessWidget {
   const SnipAvatar({
     super.key,
     this.imageUrl,
+    this.url,
     this.name,
     this.size = 40,
   });
 
   final String? imageUrl;
+  final String? url;
   final String? name;
   final double size;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveUrl = imageUrl ?? url;
     final initials = _initials(name);
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
+
+    if (effectiveUrl != null && effectiveUrl.isNotEmpty) {
       return ClipOval(
         child: CachedNetworkImage(
-          imageUrl: imageUrl!,
+          imageUrl: effectiveUrl,
           width: size,
           height: size,
           fit: BoxFit.cover,
@@ -46,8 +50,8 @@ class SnipAvatar extends StatelessWidget {
         initials,
         style: TextStyle(
           color: SnipColors.white,
-          fontWeight: FontWeight.w600,
-          fontSize: size * 0.35,
+          fontWeight: FontWeight.w700,
+          fontSize: size * 0.38,
         ),
       ),
     );

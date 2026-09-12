@@ -8,6 +8,7 @@ node_modules/
 .env.local
 .env.*.local
 !.env.example
+DEMO_ACCOUNTS.txt
 **/google-services.json
 **/GoogleService-Info.plist
 

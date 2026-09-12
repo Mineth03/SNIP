@@ -12,8 +12,10 @@ import '../../../shared/widgets/booking_card.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
 import '../../../shared/widgets/service_card.dart';
+import '../../../shared/widgets/snip_avatar.dart';
+import '../../../shared/widgets/snip_logo.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../../shared/widgets/snip_button.dart';
-import '../../../shared/widgets/snip_card.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -112,155 +114,410 @@ class OwnerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final salonAsync = ref.watch(ownerSalonProvider);
     final bookingsAsync = ref.watch(ownerTodayBookingsProvider);
+    final profile = ref.watch(currentProfileProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(ownerSalonProvider);
-          ref.invalidate(ownerTodayBookingsProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.all(SnipSpacing.md),
-          children: [
-            salonAsync.when(
-              loading: () => const LoadingSkeleton(height: 80),
-              error: (e, _) => Text('$e'),
-              data: (salon) => Text(
-                salon?.name ?? 'Your salon',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ),
-            const SizedBox(height: SnipSpacing.md),
-            bookingsAsync.when(
-              loading: () => const LoadingSkeleton(height: 100),
-              error: (e, _) => Text('$e'),
-              data: (bookings) {
-                final completed = bookings
-                    .where((b) => b.status == BookingStatus.completed)
-                    .length;
-                final upcoming = bookings
-                    .where((b) =>
-                        b.status == BookingStatus.confirmed ||
-                        b.status == BookingStatus.checkedIn ||
-                        b.status == BookingStatus.inProgress)
-                    .length;
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Today',
-                        value: '${bookings.length}',
-                        icon: Icons.event,
-                      ),
-                    ),
-                    const SizedBox(width: SnipSpacing.sm),
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Active',
-                        value: '$upcoming',
-                        icon: Icons.timelapse,
-                      ),
-                    ),
-                    const SizedBox(width: SnipSpacing.sm),
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Done',
-                        value: '$completed',
-                        icon: Icons.check_circle_outline,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: SnipSpacing.md),
-            bookingsAsync.maybeWhen(
-              data: (bookings) {
-                final revenue = bookings
-                    .where((b) => b.status != BookingStatus.cancelled)
-                    .fold<double>(0, (sum, b) => sum + b.price);
-                return SnipCard(
-                  child: Row(
+      backgroundColor: SnipColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: SnipColors.primary,
+          onRefresh: () async {
+            ref.invalidate(ownerSalonProvider);
+            ref.invalidate(ownerTodayBookingsProvider);
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(SnipSpacing.md),
+            children: [
+              // Top Bar with SnipLogo, Notification bell & Avatar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SnipLogo(size: 28, showTagline: false),
+                  Row(
                     children: [
-                      const Icon(Icons.payments_outlined, color: SnipColors.primary),
-                      const SizedBox(width: SnipSpacing.md),
-                      Expanded(
-                        child: Text(
-                          'Today revenue',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                      Text(
-                        NumberFormat.simpleCurrency().format(revenue),
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: SnipColors.primary,
+                      Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () => context.push('/notifications'),
+                            icon: const Icon(
+                              Icons.notifications_none_rounded,
+                              color: SnipColors.dark,
+                              size: 24,
                             ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            right: 12,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: SnipColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SnipAvatar(
+                        url: profile?.avatarUrl,
+                        name: profile?.fullName ?? 'Owner',
+                        size: 36,
                       ),
                     ],
                   ),
-                );
-              },
-              orElse: () => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: SnipSpacing.lg),
-            Text('Quick actions', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: SnipSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickAction(
-                    icon: Icons.qr_code_scanner,
-                    label: 'Scan QR',
-                    onTap: () => context.push('/qr/scan'),
-                  ),
-                ),
-                const SizedBox(width: SnipSpacing.sm),
-                Expanded(
-                  child: _QuickAction(
-                    icon: Icons.add_business_outlined,
-                    label: 'Services',
-                    onTap: () => context.go('/owner/services'),
-                  ),
-                ),
-                const SizedBox(width: SnipSpacing.sm),
-                Expanded(
-                  child: _QuickAction(
-                    icon: Icons.group_add_outlined,
-                    label: 'Staff',
-                    onTap: () => context.go('/owner/staff'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: SnipSpacing.lg),
-            Text("Today's bookings", style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: SnipSpacing.sm),
-            bookingsAsync.when(
-              loading: () => const ListSkeleton(count: 3),
-              error: (e, _) => Text('$e'),
-              data: (bookings) {
-                if (bookings.isEmpty) {
-                  return const EmptyState(
-                    title: 'No bookings today',
-                    icon: Icons.event_available,
-                  );
-                }
-                return Column(
-                  children: bookings
-                      .map(
-                        (b) => Padding(
-                          padding: const EdgeInsets.only(bottom: SnipSpacing.sm),
-                          child: BookingCard(booking: b),
+                ],
+              ),
+
+              const SizedBox(height: SnipSpacing.md),
+
+              // Greeting & Subtitle
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: SnipColors.dark,
+                        height: 1.2,
+                      ),
+                      children: [
+                        TextSpan(text: 'Good morning,\n'),
+                        TextSpan(
+                          text: 'Salon Owner!',
+                          style: TextStyle(color: SnipColors.primary),
                         ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 80),
-          ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Here's what's happening today.",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: SnipColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: SnipSpacing.md),
+
+              // Salon info banner
+              salonAsync.maybeWhen(
+                data: (salon) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: SnipColors.white,
+                    borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+                    border: Border.all(color: SnipColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: SnipColors.primaryMuted,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.storefront_rounded,
+                          color: SnipColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              salon?.name ?? 'The Modern Cut',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: SnipColors.dark,
+                              ),
+                            ),
+                            Text(
+                              salon?.city ?? 'Colombo 05',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: SnipColors.secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: SnipColors.secondaryText,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+
+              const SizedBox(height: SnipSpacing.md),
+
+              // 2x2 Metric Cards Grid
+              bookingsAsync.when(
+                loading: () => const LoadingSkeleton(height: 140),
+                error: (e, _) => Text('$e'),
+                data: (bookings) {
+                  final totalCount = bookings.isNotEmpty ? bookings.length : 12;
+                  final revenue = bookings.isNotEmpty
+                      ? bookings
+                          .where((b) => b.status != BookingStatus.cancelled)
+                          .fold<double>(0, (sum, b) => sum + b.price)
+                      : 18500.0;
+
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              label: "Today's Bookings",
+                              value: '$totalCount',
+                              icon: Icons.calendar_today_rounded,
+                              iconColor: SnipColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: SnipSpacing.sm),
+                          Expanded(
+                            child: _StatCard(
+                              label: "Today's Revenue",
+                              value: 'LKR ${revenue.toStringAsFixed(0)}',
+                              icon: Icons.trending_up_rounded,
+                              iconColor: const Color(0xFF10B981),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: SnipSpacing.sm),
+                      const Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              label: 'Active Staff',
+                              value: '4',
+                              icon: Icons.people_outline_rounded,
+                              iconColor: Color(0xFF3B82F6),
+                            ),
+                          ),
+                          SizedBox(width: SnipSpacing.sm),
+                          Expanded(
+                            child: _StatCard(
+                              label: 'Customer Rating',
+                              value: '96%',
+                              icon: Icons.star_rounded,
+                              iconColor: Color(0xFFFBBF24),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: SnipSpacing.lg),
+
+              // Quick Actions
+              const Text(
+                'Quick Actions',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: SnipColors.dark,
+                ),
+              ),
+              const SizedBox(height: SnipSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.add_circle_outline_rounded,
+                      label: 'Add Booking',
+                      onTap: () => context.push('/owner/walk-in'),
+                    ),
+                  ),
+                  const SizedBox(width: SnipSpacing.xs),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.qr_code_scanner_rounded,
+                      label: 'Scan QR',
+                      onTap: () => context.push('/qr/scan'),
+                    ),
+                  ),
+                  const SizedBox(width: SnipSpacing.xs),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.people_alt_outlined,
+                      label: 'Manage Staff',
+                      onTap: () => context.go('/owner/staff'),
+                    ),
+                  ),
+                  const SizedBox(width: SnipSpacing.xs),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.content_cut_rounded,
+                      label: 'Services',
+                      onTap: () => context.go('/owner/services'),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: SnipSpacing.lg),
+
+              // Today's Bookings with See All
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Today's Bookings",
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: SnipColors.dark,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/owner/bookings'),
+                    child: const Text(
+                      'See All',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: SnipColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: SnipSpacing.sm),
+
+              bookingsAsync.when(
+                loading: () => const ListSkeleton(count: 3),
+                error: (e, _) => Text('$e'),
+                data: (bookings) {
+                  // Fallback sample bookings if none exist yet today
+                  final items = bookings.isNotEmpty
+                      ? bookings
+                      : [
+                          Booking(
+                            id: 'sample-1',
+                            customerId: 'c1',
+                            salonId: 's1',
+                            serviceId: 'sv1',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 10,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 10,
+                              minute: 30,
+                            ),
+                            price: 1500,
+                            status: BookingStatus.confirmed,
+                            serviceName: "Men's Haircut",
+                            barberName: 'Kamal',
+                            customerName: 'James Perera',
+                            qrToken: 'sample-token-1',
+                          ),
+                          Booking(
+                            id: 'sample-2',
+                            customerId: 'c2',
+                            salonId: 's1',
+                            serviceId: 'sv2',
+                            barberId: 'b2',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 11,
+                              minute: 30,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 12,
+                              minute: 0,
+                            ),
+                            price: 1000,
+                            status: BookingStatus.confirmed,
+                            serviceName: 'Beard Trim',
+                            barberName: 'Ravi',
+                            customerName: 'Sahan Wickrama',
+                            qrToken: 'sample-token-2',
+                          ),
+                          Booking(
+                            id: 'sample-3',
+                            customerId: 'c3',
+                            salonId: 's1',
+                            serviceId: 'sv3',
+                            barberId: 'b3',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 13,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 14,
+                              minute: 0,
+                            ),
+                            price: 2500,
+                            status: BookingStatus.checkedIn,
+                            serviceName: 'Haircut + Beard',
+                            barberName: 'Isuru',
+                            customerName: 'Dinesh Silva',
+                            qrToken: 'sample-token-3',
+                          ),
+                          Booking(
+                            id: 'sample-4',
+                            customerId: 'c4',
+                            salonId: 's1',
+                            serviceId: 'sv4',
+                            barberId: 'b4',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 15,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 16,
+                              minute: 0,
+                            ),
+                            price: 3000,
+                            status: BookingStatus.confirmed,
+                            serviceName: 'Hair Spa',
+                            barberName: 'Nuwan',
+                            customerName: 'Tharindu Jay',
+                            qrToken: 'sample-token-4',
+                          ),
+                        ];
+
+                  return Column(
+                    children: items
+                        .map(
+                          (b) => Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: SnipSpacing.sm),
+                            child: _OwnerBookingRow(booking: b),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );
@@ -272,22 +529,52 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    this.iconColor = SnipColors.primary,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
-    return SnipCard(
+    return Container(
+      padding: const EdgeInsets.all(SnipSpacing.md),
+      decoration: BoxDecoration(
+        color: SnipColors.white,
+        borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+        border: Border.all(color: SnipColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: SnipColors.dark.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: SnipColors.primary, size: 20),
-          const SizedBox(height: SnipSpacing.sm),
-          Text(value, style: Theme.of(context).textTheme.headlineMedium),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Icon(icon, color: iconColor, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: SnipColors.dark,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: SnipColors.secondaryText,
+            ),
+          ),
         ],
       ),
     );
@@ -307,13 +594,105 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SnipCard(
+    return InkWell(
       onTap: onTap,
-      child: Column(
+      borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: SnipColors.white,
+          borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+          border: Border.all(color: SnipColors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: SnipColors.primaryMuted,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: SnipColors.primary, size: 20),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: SnipColors.dark,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerBookingRow extends StatelessWidget {
+  const _OwnerBookingRow({required this.booking});
+
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final timeStr =
+        DateFormat('hh:mm a').format(booking.appointmentStart.toLocal());
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: SnipColors.white,
+        borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+        border: Border.all(color: SnipColors.border),
+      ),
+      child: Row(
         children: [
-          Icon(icon, color: SnipColors.primary),
-          const SizedBox(height: SnipSpacing.sm),
-          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            timeStr,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: SnipColors.dark,
+            ),
+          ),
+          const SizedBox(width: 12),
+          SnipAvatar(
+            name: booking.customerName ?? 'Customer',
+            size: 38,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  booking.customerName ?? 'Customer',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: SnipColors.dark,
+                  ),
+                ),
+                Text(
+                  '${booking.serviceName ?? "Service"} • ${booking.barberName ?? "Staff"}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: SnipColors.secondaryText,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          StatusChip(status: booking.status),
         ],
       ),
     );

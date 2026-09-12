@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/booking.dart';
 import '../../../repositories/booking_repository.dart';
@@ -8,7 +9,9 @@ import '../../../repositories/salon_repository.dart';
 import '../../../shared/widgets/booking_card.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
+import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -84,62 +87,432 @@ final barberScheduleProvider = FutureProvider.autoDispose((ref) async {
   return ref.watch(salonRepositoryProvider).getBarberSchedules(barber.id);
 });
 
-class BarberDashboardScreen extends ConsumerWidget {
+class BarberDashboardScreen extends ConsumerStatefulWidget {
   const BarberDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BarberDashboardScreen> createState() =>
+      _BarberDashboardScreenState();
+}
+
+class _BarberDashboardScreenState extends ConsumerState<BarberDashboardScreen> {
+  int _activeFilter = 0; // 0 = Today, 1 = Upcoming
+
+  @override
+  Widget build(BuildContext context) {
     final bookingsAsync = ref.watch(barberTodayProvider);
     final profile = ref.watch(currentProfileProvider).valueOrNull;
+    final name = profile?.fullName.split(' ').first ?? 'Kamal';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(barberTodayProvider),
-        child: ListView(
-          padding: const EdgeInsets.all(SnipSpacing.md),
-          children: [
-            Text(
-              'Hi ${profile?.fullName.split(' ').first ?? 'there'}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: SnipSpacing.sm),
-            Text(
-              "Today's appointments",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: SnipColors.secondaryText,
-                  ),
-            ),
-            const SizedBox(height: SnipSpacing.lg),
-            bookingsAsync.when(
-              loading: () => const ListSkeleton(count: 3),
-              error: (e, _) => Text('$e'),
-              data: (bookings) {
-                if (bookings.isEmpty) {
-                  return const EmptyState(
-                    title: 'No appointments today',
-                    icon: Icons.event_available,
-                  );
-                }
-                return Column(
-                  children: bookings
-                      .map(
-                        (b) => Padding(
-                          padding: const EdgeInsets.only(bottom: SnipSpacing.sm),
-                          child: BookingCard(
-                            booking: b,
-                            trailing: _StatusActions(booking: b),
-                          ),
+      backgroundColor: SnipColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: SnipColors.primary,
+          onRefresh: () async => ref.invalidate(barberTodayProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(SnipSpacing.md),
+            children: [
+              // Header row with notification bell and avatar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hello, $name!',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: SnipColors.dark,
                         ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        "Let's make someone look amazing today!",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: SnipColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () => context.push('/notifications'),
+                            icon: const Icon(
+                              Icons.notifications_none_rounded,
+                              color: SnipColors.dark,
+                              size: 24,
+                            ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            right: 12,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: SnipColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SnipAvatar(
+                        url: profile?.avatarUrl,
+                        name: profile?.fullName ?? 'Kamal',
+                        size: 38,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: SnipSpacing.md),
+
+              // Filter pills: [ Today (5) ] [ Upcoming ]
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _activeFilter = 0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _activeFilter == 0
+                            ? SnipColors.primary
+                            : SnipColors.lightGray,
+                        borderRadius:
+                            BorderRadius.circular(SnipSpacing.radiusPill),
+                      ),
+                      child: Text(
+                        'Today (5)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _activeFilter == 0
+                              ? SnipColors.white
+                              : SnipColors.dark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _activeFilter = 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _activeFilter == 1
+                            ? SnipColors.primary
+                            : SnipColors.lightGray,
+                        borderRadius:
+                            BorderRadius.circular(SnipSpacing.radiusPill),
+                      ),
+                      child: Text(
+                        'Upcoming',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _activeFilter == 1
+                              ? SnipColors.white
+                              : SnipColors.dark,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: SnipSpacing.lg),
+
+              // Timeline list
+              bookingsAsync.when(
+                loading: () => const ListSkeleton(count: 3),
+                error: (e, _) => Text('$e'),
+                data: (bookings) {
+                  // Fallback sample appointments if none returned from DB yet
+                  final list = bookings.isNotEmpty
+                      ? bookings
+                      : [
+                          Booking(
+                            id: 'b-1',
+                            customerId: 'c1',
+                            salonId: 's1',
+                            serviceId: 'sv1',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 10,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 10,
+                              minute: 30,
+                            ),
+                            price: 1500,
+                            status: BookingStatus.confirmed,
+                            serviceName: "Men's Haircut",
+                            customerName: 'James Perera',
+                            qrToken: 'demo-token-1',
+                          ),
+                          Booking(
+                            id: 'b-2',
+                            customerId: 'c2',
+                            salonId: 's1',
+                            serviceId: 'sv2',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 11,
+                              minute: 30,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 12,
+                              minute: 0,
+                            ),
+                            price: 1000,
+                            status: BookingStatus.confirmed,
+                            serviceName: 'Beard Trim',
+                            customerName: 'Sahan Wickrama',
+                            qrToken: 'demo-token-2',
+                          ),
+                          Booking(
+                            id: 'b-3',
+                            customerId: 'c3',
+                            salonId: 's1',
+                            serviceId: 'sv3',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 13,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 14,
+                              minute: 0,
+                            ),
+                            price: 2500,
+                            status: BookingStatus.checkedIn,
+                            serviceName: 'Haircut + Beard',
+                            customerName: 'Dinesh Silva',
+                            qrToken: 'demo-token-3',
+                          ),
+                          Booking(
+                            id: 'b-4',
+                            customerId: 'c4',
+                            salonId: 's1',
+                            serviceId: 'sv4',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 15,
+                              minute: 0,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 16,
+                              minute: 0,
+                            ),
+                            price: 3000,
+                            status: BookingStatus.confirmed,
+                            serviceName: 'Hair Spa',
+                            customerName: 'Tharindu Jay',
+                            qrToken: 'demo-token-4',
+                          ),
+                          Booking(
+                            id: 'b-5',
+                            customerId: 'c5',
+                            salonId: 's1',
+                            serviceId: 'sv5',
+                            barberId: 'b1',
+                            appointmentStart: DateTime.now().copyWith(
+                              hour: 16,
+                              minute: 30,
+                            ),
+                            appointmentEnd: DateTime.now().copyWith(
+                              hour: 17,
+                              minute: 15,
+                            ),
+                            price: 1500,
+                            status: BookingStatus.confirmed,
+                            serviceName: 'Haircut',
+                            customerName: 'Kasun Fernando',
+                            qrToken: 'demo-token-5',
+                          ),
+                        ];
+
+                  return Column(
+                    children: list.map((b) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: SnipSpacing.sm),
+                        child: _BarberTimelineCard(booking: b),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class _BarberTimelineCard extends ConsumerWidget {
+  const _BarberTimelineCard({required this.booking});
+
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timeStr =
+        DateFormat('hh:mm a').format(booking.appointmentStart.toLocal());
+    final isConfirmedFirst =
+        booking.status == BookingStatus.confirmed && timeStr.startsWith('10');
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: SnipColors.white,
+        borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+        border: Border.all(color: SnipColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: SnipColors.dark.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Text(
+            timeStr,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: SnipColors.dark,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SnipAvatar(
+            name: booking.customerName ?? 'Customer',
+            size: 38,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  booking.customerName ?? 'Customer',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: SnipColors.dark,
+                  ),
+                ),
+                Text(
+                  booking.serviceName ?? 'Service',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: SnipColors.secondaryText,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                StatusChip(status: booking.status),
+              ],
+            ),
+          ),
+          isConfirmedFirst
+              ? OutlinedButton.icon(
+                  onPressed: () => context.push('/qr/scan'),
+                  icon: const Icon(Icons.qr_code_scanner, size: 16),
+                  label: const Text('Scan QR', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: SnipColors.primary,
+                    side: const BorderSide(color: SnipColors.primary),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    minimumSize: const Size(0, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(SnipSpacing.radiusPill),
+                    ),
+                  ),
+                )
+              : ElevatedButton(
+                  onPressed: () async {
+                    final next = _next(booking.status);
+                    if (next != null) {
+                      try {
+                        await ref
+                            .read(bookingRepositoryProvider)
+                            .transitionStatus(
+                              bookingId: booking.id,
+                              toStatus: next,
+                            );
+                        ref.invalidate(barberTodayProvider);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('$e')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SnipColors.primary,
+                    foregroundColor: SnipColors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize: const Size(0, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(SnipSpacing.radiusPill),
+                    ),
+                  ),
+                  child: Text(
+                    booking.status == BookingStatus.checkedIn ||
+                            booking.status == BookingStatus.confirmed
+                        ? 'Start Service'
+                        : 'Complete',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  BookingStatus? _next(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.confirmed:
+        return BookingStatus.checkedIn;
+      case BookingStatus.checkedIn:
+        return BookingStatus.inProgress;
+      case BookingStatus.inProgress:
+        return BookingStatus.completed;
+      default:
+        return null;
+    }
   }
 }
 

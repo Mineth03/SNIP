@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --snip-teal: #1488a6;
+  --snip-teal: #14b8a6;
   --snip-primary: #14b8a6;
   --snip-primary-hover: #0d9488;
-  --snip-charcoal: #0f172a;
+  --snip-charcoal: #1f2937;
   --snip-bg: #f8fafc;
   --snip-bg-muted: #f3f4f6;
   --snip-white: #ffffff;
   --snip-border: #e5e7eb;
-  --snip-muted: #64748b;
+  --snip-muted: #6b7280;
   --snip-success: #10b981;
-  --snip-warning: #f59e0b;
+  --snip-warning: #f97316;
   --snip-danger: #ef4444;
   --snip-info: #3b82f6;
   --snip-radius-sm: 8px;
   --snip-radius-md: 12px;
   --snip-radius-lg: 16px;
-  --snip-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 24px rgba(15, 23, 42, 0.06);
-  --snip-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --snip-radius-pill: 9999px;
+  --snip-shadow: 0 1px 2px rgba(31, 41, 55, 0.04),
+    0 8px 24px rgba(31, 41, 55, 0.06);
+  --snip-shadow-sm: 0 1px 3px rgba(31, 41, 55, 0.05);
   --background: var(--snip-bg);
   --foreground: var(--snip-charcoal);
 }
@@ -44,6 +45,7 @@
   --radius-sm: var(--snip-radius-sm);
   --radius-md: var(--snip-radius-md);
   --radius-lg: var(--snip-radius-lg);
+  --radius-pill: var(--snip-radius-pill);
   --shadow-snip: var(--snip-shadow);
   --shadow-snip-sm: var(--snip-shadow-sm);
 }
@@ -95,21 +97,21 @@ a {
 .snip-surface {
   background: var(--snip-white);
   border: 1px solid var(--snip-border);
-  border-radius: var(--snip-radius-md);
+  border-radius: var(--snip-radius-lg);
   box-shadow: var(--snip-shadow-sm);
 }
 
 .snip-gradient-hero {
   background:
     radial-gradient(
-      1200px 500px at 10% -10%,
-      color-mix(in srgb, var(--snip-primary) 28%, transparent),
-      transparent 60%
+      1200px 500px at 15% -10%,
+      color-mix(in srgb, var(--snip-primary) 22%, transparent),
+      transparent 65%
     ),
     radial-gradient(
-      900px 420px at 90% 0%,
-      color-mix(in srgb, var(--snip-teal) 22%, transparent),
-      transparent 55%
+      900px 420px at 85% 0%,
+      color-mix(in srgb, var(--snip-teal) 18%, transparent),
+      transparent 60%
     ),
     linear-gradient(180deg, #ffffff 0%, var(--snip-bg) 100%);
 }

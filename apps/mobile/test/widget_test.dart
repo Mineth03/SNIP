@@ -4,7 +4,7 @@ import 'package:snip_mobile/theme/snip_colors.dart';
 
 void main() {
   test('SNIP brand primary color matches kit', () {
-    expect(SnipColors.primary, const Color(0xFF1488A6));
-    expect(SnipColors.dark, const Color(0xFF0F172A));
+    expect(SnipColors.primary, const Color(0xFF14B8A6));
+    expect(SnipColors.dark, const Color(0xFF1F2937));
   });
 }

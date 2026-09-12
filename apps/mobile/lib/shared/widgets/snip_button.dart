@@ -14,6 +14,7 @@ class SnipButton extends StatelessWidget {
     this.isLoading = false,
     this.icon,
     this.expand = true,
+    this.height = 50,
   });
 
   final String label;
@@ -22,16 +23,19 @@ class SnipButton extends StatelessWidget {
   final bool isLoading;
   final IconData? icon;
   final bool expand;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     final child = isLoading
-        ? const SizedBox(
+        ? SizedBox(
             height: 20,
             width: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: SnipColors.white,
+              color: variant == SnipButtonVariant.primary
+                  ? SnipColors.white
+                  : SnipColors.primary,
             ),
           )
         : Row(
@@ -42,34 +46,64 @@ class SnipButton extends StatelessWidget {
                 Icon(icon, size: 18),
                 const SizedBox(width: SnipSpacing.sm),
               ],
-              Text(label),
+              Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ],
           );
 
     final button = switch (variant) {
       SnipButtonVariant.primary => ElevatedButton(
           onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: SnipColors.primary,
+            foregroundColor: SnipColors.white,
+            elevation: 0,
+            minimumSize: Size(expand ? double.infinity : 0, height),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+            ),
+          ),
           child: child,
         ),
       SnipButtonVariant.secondary => ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: SnipColors.dark,
+            backgroundColor: SnipColors.lightGray,
+            foregroundColor: SnipColors.dark,
+            elevation: 0,
+            minimumSize: Size(expand ? double.infinity : 0, height),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+            ),
           ),
           child: child,
         ),
       SnipButtonVariant.outline => OutlinedButton(
           onPressed: isLoading ? null : onPressed,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: SnipColors.dark,
+            side: const BorderSide(color: SnipColors.border, width: 1.5),
+            minimumSize: Size(expand ? double.infinity : 0, height),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+            ),
+          ),
           child: child,
         ),
       SnipButtonVariant.text => TextButton(
           onPressed: isLoading ? null : onPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: SnipColors.primary,
+            minimumSize: Size(expand ? double.infinity : 0, height),
+          ),
           child: child,
         ),
     };
 
-    if (!expand) return button;
-    return SizedBox(width: double.infinity, child: button);
+    if (expand) return button;
+    return SizedBox(height: height, child: button);
   }
 }
 
@@ -94,6 +128,8 @@ class PrimaryCTA extends StatelessWidget {
       onPressed: onPressed,
       isLoading: isLoading,
       icon: icon,
+      variant: SnipButtonVariant.primary,
+      expand: true,
     );
   }
 }

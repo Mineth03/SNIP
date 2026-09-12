@@ -9,6 +9,7 @@ class EmptyState extends StatelessWidget {
     super.key,
     required this.title,
     this.message,
+    this.description,
     this.icon = Icons.inbox_outlined,
     this.actionLabel,
     this.onAction,
@@ -16,12 +17,15 @@ class EmptyState extends StatelessWidget {
 
   final String title;
   final String? message;
+  final String? description;
   final IconData icon;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
+    final body = message ?? description;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(SnipSpacing.xl),
@@ -43,10 +47,10 @@ class EmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
-            if (message != null) ...[
+            if (body != null) ...[
               const SizedBox(height: SnipSpacing.sm),
               Text(
-                message!,
+                body,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: SnipColors.secondaryText,
                     ),
