@@ -67,4 +67,68 @@ abstract final class SnipTypography {
       color: SnipColors.secondaryText,
     ),
   );
+
+  static TextTheme darkTextTheme = TextTheme(
+    displayLarge: GoogleFonts.inter(
+      fontSize: 32,
+      fontWeight: FontWeight.w700,
+      color: SnipColors.darkTextPrimary,
+      letterSpacing: -0.5,
+    ),
+    displayMedium: GoogleFonts.inter(
+      fontSize: 28,
+      fontWeight: FontWeight.w700,
+      color: SnipColors.darkTextPrimary,
+    ),
+    headlineLarge: GoogleFonts.inter(
+      fontSize: 24,
+      fontWeight: FontWeight.w700,
+      color: SnipColors.darkTextPrimary,
+    ),
+    headlineMedium: GoogleFonts.inter(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+      color: SnipColors.darkTextPrimary,
+    ),
+    headlineSmall: GoogleFonts.inter(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: SnipColors.darkTextPrimary,
+    ),
+    titleLarge: GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: SnipColors.darkTextPrimary,
+    ),
+    titleMedium: GoogleFonts.inter(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: SnipColors.darkTextPrimary,
+    ),
+    bodyLarge: GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      color: SnipColors.darkTextPrimary,
+    ),
+    bodyMedium: GoogleFonts.inter(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: SnipColors.darkTextPrimary,
+    ),
+    bodySmall: GoogleFonts.inter(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: SnipColors.darkTextSecondary,
+    ),
+    labelLarge: GoogleFonts.inter(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: SnipColors.darkTextPrimary,
+    ),
+    labelMedium: GoogleFonts.inter(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      color: SnipColors.darkTextSecondary,
+    ),
+  );
 }

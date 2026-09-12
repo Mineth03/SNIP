@@ -2,13 +2,55 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  ClipboardList,
+  FileBarChart,
+  Heart,
+  Images,
+  LayoutDashboard,
+  type LucideIcon,
+  MapPinned,
+  QrCode,
+  ScanLine,
+  Scissors,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Store,
+  UserCog,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { SnipLogo } from "@/components/snip/snip-logo";
 import { cn } from "@/lib/utils";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Bell,
+  CalendarDays,
+  ClipboardList,
+  FileBarChart,
+  Heart,
+  Images,
+  LayoutDashboard,
+  MapPinned,
+  QrCode,
+  ScanLine,
+  Scissors,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Store,
+  UserCog,
+  UserRound,
+  Users,
+};
 
 export type NavItem = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: string | LucideIcon;
 };
 
 export function Sidebar({
@@ -31,28 +73,36 @@ export function Sidebar({
       className={cn(
         "flex h-full w-64 shrink-0 flex-col border-r",
         dark
-          ? "border-white/10 bg-snip-charcoal text-white"
+          ? "border-slate-800 bg-slate-900 text-white"
           : "border-snip-border bg-white text-snip-charcoal",
       )}
     >
-      <div className="border-b border-inherit px-5 py-5">
-        <div className="text-lg font-bold tracking-tight">{title}</div>
-        {subtitle ? (
-          <div
-            className={cn(
-              "mt-0.5 text-xs",
-              dark ? "text-white/60" : "text-snip-muted",
-            )}
-          >
-            {subtitle}
+      <div className="border-b border-inherit px-5 py-4">
+        <Link href="/" className="flex items-center gap-3 transition hover:opacity-90">
+          <SnipLogo size={32} light={dark ? true : undefined} showText={false} />
+          <div>
+            <div className="text-base font-bold tracking-tight">{title}</div>
+            {subtitle ? (
+              <div
+                className={cn(
+                  "text-[11px] font-medium",
+                  dark ? "text-white/60" : "text-snip-muted",
+                )}
+              >
+                {subtitle}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </Link>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
+          const Icon =
+            typeof item.icon === "string"
+              ? (ICON_MAP[item.icon] ?? LayoutDashboard)
+              : item.icon;
           return (
             <Link
               key={item.href}

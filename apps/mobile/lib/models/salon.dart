@@ -42,6 +42,12 @@ class Salon extends Equatable {
     this.verificationStatus = SalonVerificationStatus.draft,
     this.isActive = true,
     this.openingHours = const {},
+    this.avgRating = 0.0,
+    this.reviewCount = 0,
+    this.distanceKm,
+    this.recommendationScore,
+    this.recommendationReason,
+    this.matchedCategory,
   });
 
   final String id;
@@ -60,6 +66,12 @@ class Salon extends Equatable {
   final SalonVerificationStatus verificationStatus;
   final bool isActive;
   final Map<String, dynamic> openingHours;
+  final double avgRating;
+  final int reviewCount;
+  final double? distanceKm;
+  final double? recommendationScore;
+  final String? recommendationReason;
+  final String? matchedCategory;
 
   factory Salon.fromJson(Map<String, dynamic> json) {
     return Salon(
@@ -80,9 +92,23 @@ class Salon extends Equatable {
           salonStatusFromString(json['verification_status'] as String?),
       isActive: json['is_active'] as bool? ?? true,
       openingHours: (json['opening_hours'] as Map<String, dynamic>?) ?? const {},
+      avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      recommendationScore: (json['recommendation_score'] as num?)?.toDouble(),
+      recommendationReason: json['recommendation_reason'] as String?,
+      matchedCategory: json['matched_category'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, city, verificationStatus];
+  List<Object?> get props => [
+        id,
+        name,
+        city,
+        verificationStatus,
+        distanceKm,
+        recommendationScore,
+        recommendationReason,
+      ];
 }

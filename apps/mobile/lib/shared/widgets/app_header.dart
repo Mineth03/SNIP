@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/snip_colors.dart';
 import '../../theme/snip_spacing.dart';
 import 'snip_avatar.dart';
+import 'theme_toggle_button.dart';
 
 class AppHeader extends StatelessWidget {
   const AppHeader({
@@ -12,6 +13,7 @@ class AppHeader extends StatelessWidget {
     this.avatarUrl,
     this.actions,
     this.onAvatarTap,
+    this.showThemeToggle = false,
   });
 
   final String title;
@@ -19,6 +21,7 @@ class AppHeader extends StatelessWidget {
   final String? avatarUrl;
   final List<Widget>? actions;
   final VoidCallback? onAvatarTap;
+  final bool showThemeToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +50,7 @@ class AppHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (showThemeToggle) const ThemeToggleButton(size: 22),
           if (actions != null) ...actions!,
           if (avatarUrl != null || onAvatarTap != null)
             GestureDetector(

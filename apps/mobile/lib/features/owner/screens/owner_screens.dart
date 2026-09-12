@@ -16,6 +16,7 @@ import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_logo.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../../shared/widgets/snip_button.dart';
+import '../../../shared/widgets/theme_toggle_button.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -80,19 +81,19 @@ final ownerSalonProvider = FutureProvider.autoDispose((ref) async {
   return salons.isEmpty ? null : salons.first;
 });
 
-final ownerTodayBookingsProvider = FutureProvider.autoDispose((ref) async {
-  final salon = await ref.watch(ownerSalonProvider.future);
-  if (salon == null) return <Booking>[];
-  return ref.watch(bookingRepositoryProvider).getSalonBookings(
+final ownerTodayBookingsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+  final salon = ref.watch(ownerSalonProvider).valueOrNull;
+  if (salon == null) return Stream.value(<Booking>[]);
+  return ref.watch(bookingRepositoryProvider).streamSalonBookings(
         salon.id,
         day: DateTime.now(),
       );
 });
 
-final ownerAllBookingsProvider = FutureProvider.autoDispose((ref) async {
-  final salon = await ref.watch(ownerSalonProvider.future);
-  if (salon == null) return <Booking>[];
-  return ref.watch(bookingRepositoryProvider).getSalonBookings(salon.id);
+final ownerAllBookingsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+  final salon = ref.watch(ownerSalonProvider).valueOrNull;
+  if (salon == null) return Stream.value(<Booking>[]);
+  return ref.watch(bookingRepositoryProvider).streamSalonBookings(salon.id);
 });
 
 final ownerServicesProvider = FutureProvider.autoDispose((ref) async {
@@ -117,7 +118,6 @@ class OwnerDashboardScreen extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider).valueOrNull;
 
     return Scaffold(
-      backgroundColor: SnipColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           color: SnipColors.primary,
@@ -132,16 +132,20 @@ class OwnerDashboardScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SnipLogo(size: 28, showTagline: false),
+                  const SnipLogo(
+                    variant: SnipLogoVariant.stacked,
+                    size: 36,
+                  ),
                   Row(
                     children: [
+                      const ThemeToggleButton(size: 22),
                       Stack(
                         children: [
                           IconButton(
                             onPressed: () => context.push('/notifications'),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.notifications_none_rounded,
-                              color: SnipColors.dark,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 24,
                             ),
                           ),

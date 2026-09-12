@@ -1,28 +1,20 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 
-export const metadata = { title: "Forgot password" };
+export const metadata = { title: "Forgot Password | SNIP" };
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center snip-gradient-hero px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-snip-charcoal">
-            SNIP
-          </Link>
-          <p className="mt-2 text-sm text-snip-muted">Reset your password</p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Forgot password</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ForgotPasswordForm />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthShell
+      title="Reset your password"
+      subtitle="Enter your email to receive a recovery link and regain access to your account"
+      mode="login"
+    >
+      <Suspense fallback={<LoadingSkeleton rows={2} />}>
+        <ForgotPasswordForm />
+      </Suspense>
+    </AuthShell>
   );
 }

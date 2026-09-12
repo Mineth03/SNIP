@@ -1,14 +1,13 @@
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
-import { QrCode } from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+import { QRCodeImage } from "@/components/snip/qr-code-image";
+import { RealtimeTicketWrapper } from "@/components/snip/realtime-ticket-wrapper";
 import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
-import type { Booking, BookingStatus } from "@/types/database";
+import type { Booking } from "@/types/database";
 
-export const metadata = { title: "Booking details" };
+export const metadata = { title: "Booking Ticket | SNIP" };
 
 export default async function CustomerBookingDetailPage({
   params,
@@ -42,54 +41,24 @@ export default async function CustomerBookingDetailPage({
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-2xl font-semibold text-snip-charcoal">
-          {booking.services?.name ?? "Booking"}
-        </h2>
-        <StatusBadge status={booking.status as BookingStatus} />
+    <div className="mx-auto max-w-2xl space-y-6 py-6">
+      <div className="flex items-center justify-between">
+        <Link
+          href="/customer/bookings"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-snip-muted hover:text-snip-charcoal"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to Bookings
+        </Link>
+        <span className="text-xs font-medium text-snip-muted">
+          Ref: {booking.id.slice(0, 8)}
+        </span>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Appointment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-snip-muted">
-            <p className="text-base font-semibold text-snip-charcoal">
-              {format(new Date(booking.appointment_start), "EEEE, MMM d · h:mm a")}
-            </p>
-            <p>Salon: {booking.salons?.name}</p>
-            <p>Stylist: {booking.barbers?.display_name ?? "Assigned stylist"}</p>
-            <p>Total: {formatCurrency(booking.price)}</p>
-            {booking.customer_notes ? <p>Notes: {booking.customer_notes}</p> : null}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-4 w-4 text-snip-teal" />
-              Check-in ticket
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-lg border border-dashed border-snip-border bg-snip-bg p-6 text-center">
-              <p className="font-mono text-sm font-semibold tracking-wider text-snip-charcoal">
-                {booking.qr_token}
-              </p>
-              <p className="mt-2 text-xs text-snip-muted">
-                Show this QR token at the salon for check-in.
-              </p>
-            </div>
-            <p className="text-sm text-snip-muted">
-              {[booking.salons?.address, booking.salons?.city]
-                .filter(Boolean)
-                .join(", ") || "Address on file with salon"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <RealtimeTicketWrapper
+        initialBooking={booking}
+        qrCodeElement={<QRCodeImage value={booking.qr_token} size={180} />}
+      />
     </div>
   );
 }

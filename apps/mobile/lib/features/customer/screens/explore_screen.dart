@@ -8,15 +8,30 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
 import '../../../shared/widgets/salon_card.dart';
 import '../../../shared/widgets/snip_search_bar.dart';
+import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
+import 'customer_home_screen.dart';
 
 final exploreQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 final exploreCategoryProvider =
     StateProvider.autoDispose<ServiceCategory?>((ref) => null);
+final exploreNearMeProvider = StateProvider.autoDispose<bool>((ref) => false);
 
 final exploreSalonsProvider = FutureProvider.autoDispose((ref) {
   final query = ref.watch(exploreQueryProvider);
   final category = ref.watch(exploreCategoryProvider);
+  final isNearMe = ref.watch(exploreNearMeProvider);
+
+  if (isNearMe) {
+    final loc = ref.watch(userLocationProvider);
+    return ref.watch(salonRepositoryProvider).getNearbySalons(
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          category: category,
+          limit: 20,
+        );
+  }
+
   return ref.watch(salonRepositoryProvider).searchSalons(
         query: query.isEmpty ? null : query,
         category: category,
@@ -57,6 +72,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Widget build(BuildContext context) {
     final salonsAsync = ref.watch(exploreSalonsProvider);
     final selectedCategory = ref.watch(exploreCategoryProvider);
+    final isNearMe = ref.watch(exploreNearMeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Explore')),
@@ -80,10 +96,28 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 Padding(
                   padding: const EdgeInsets.only(right: SnipSpacing.sm),
                   child: FilterChip(
+                    avatar: Icon(
+                      Icons.near_me,
+                      size: 14,
+                      color: isNearMe ? SnipColors.primary : SnipColors.secondaryText,
+                    ),
+                    label: const Text('Near Me'),
+                    selected: isNearMe,
+                    selectedColor: SnipColors.primary.withValues(alpha: 0.15),
+                    checkmarkColor: SnipColors.primary,
+                    onSelected: (val) =>
+                        ref.read(exploreNearMeProvider.notifier).state = val,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: SnipSpacing.sm),
+                  child: FilterChip(
                     label: const Text('All'),
-                    selected: selectedCategory == null,
-                    onSelected: (_) =>
-                        ref.read(exploreCategoryProvider.notifier).state = null,
+                    selected: selectedCategory == null && !isNearMe,
+                    onSelected: (_) {
+                      ref.read(exploreCategoryProvider.notifier).state = null;
+                      ref.read(exploreNearMeProvider.notifier).state = false;
+                    },
                   ),
                 ),
                 ...[ServiceCategory.hair, ServiceCategory.nails, ServiceCategory.facial, ServiceCategory.massage]

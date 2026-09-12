@@ -26,6 +26,14 @@ abstract final class SnipColors {
   static const Color secondaryText = Color(0xFF6B7280);
   static const Color textMuted = Color(0xFF9CA3AF);
 
+  /// Dark Mode Palette
+  static const Color darkBackground = Color(0xFF0F172A);
+  static const Color darkSurface = Color(0xFF1E293B);
+  static const Color darkSurfaceElevated = Color(0xFF26354A);
+  static const Color darkBorder = Color(0xFF334155);
+  static const Color darkTextPrimary = Color(0xFFF1F5F9);
+  static const Color darkTextSecondary = Color(0xFF94A3B8);
+
   /// Semantic colors
   static const Color success = Color(0xFF10B981);
   static const Color successLight = Color(0xFFD1FAE5);
@@ -35,4 +43,28 @@ abstract final class SnipColors {
   static const Color error = Color(0xFFEF4444);
   static const Color errorLight = Color(0xFFFEE2E2);
   static const Color info = Color(0xFF3B82F6);
+}
+
+extension SnipThemeColors on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+
+  Color get snipScaffold =>
+      isDark ? SnipColors.darkBackground : SnipColors.background;
+
+  Color get snipCard => isDark ? SnipColors.darkSurface : SnipColors.white;
+
+  Color get snipFill =>
+      isDark ? SnipColors.darkSurfaceElevated : SnipColors.lightGray;
+
+  Color get snipText =>
+      isDark ? SnipColors.darkTextPrimary : SnipColors.dark;
+
+  Color get snipMuted =>
+      isDark ? SnipColors.darkTextSecondary : SnipColors.secondaryText;
+
+  Color get snipBorder => isDark ? SnipColors.darkBorder : SnipColors.border;
+
+  Color get snipPrimarySoft => isDark
+      ? SnipColors.primary.withValues(alpha: 0.18)
+      : SnipColors.primaryMuted;
 }

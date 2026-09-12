@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { CalendarClock } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { BookingStatusActionButton } from "@/components/snip/booking-status-button";
 import { formatCurrency } from "@/lib/utils";
 import type { BookingStatus } from "@/types/database";
 
@@ -15,6 +16,7 @@ export function BookingCard({
   price,
   status,
   href,
+  canManage = false,
 }: {
   id: string;
   salonName: string;
@@ -24,8 +26,9 @@ export function BookingCard({
   price: number | string;
   status: BookingStatus;
   href?: string;
+  canManage?: boolean;
 }) {
-  const content = (
+  return (
     <Card className="transition hover:shadow-snip">
       <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
@@ -42,16 +45,28 @@ export function BookingCard({
             {format(new Date(start), "EEE, MMM d · h:mm a")}
           </p>
         </div>
-        <div className="text-left sm:text-right">
-          <p className="text-lg font-semibold text-snip-charcoal">
-            {formatCurrency(price)}
-          </p>
-          <p className="text-xs text-snip-muted">#{id.slice(0, 8)}</p>
+        <div className="flex flex-row items-center justify-between gap-4 sm:flex-col sm:items-end">
+          <div className="text-left sm:text-right">
+            <p className="text-lg font-semibold text-snip-charcoal">
+              {formatCurrency(price)}
+            </p>
+            <p className="text-xs text-snip-muted">#{id.slice(0, 8)}</p>
+          </div>
+          {canManage && (
+            <div className="pt-1">
+              <BookingStatusActionButton bookingId={id} currentStatus={status} />
+            </div>
+          )}
+          {href && !canManage && (
+            <Link
+              href={href}
+              className="text-xs font-semibold text-snip-teal hover:underline"
+            >
+              View details →
+            </Link>
+          )}
         </div>
       </CardContent>
     </Card>
   );
-
-  if (!href) return content;
-  return <Link href={href}>{content}</Link>;
 }

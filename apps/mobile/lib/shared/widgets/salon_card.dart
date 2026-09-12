@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/salon.dart';
 import '../../theme/snip_colors.dart';
 import '../../theme/snip_spacing.dart';
+import 'favorite_button.dart';
 import 'snip_card.dart';
 
 class SalonCard extends StatelessWidget {
@@ -29,6 +30,13 @@ class SalonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = salon.coverUrl ?? salon.logoUrl;
+    final effectiveRating = salon.avgRating > 0 ? salon.avgRating : rating;
+    final effectiveReviews = salon.reviewCount > 0 ? salon.reviewCount : reviewCount;
+    final formattedDistance = salon.distanceKm != null
+        ? (salon.distanceKm! < 1
+            ? '${(salon.distanceKm! * 1000).round()} m away'
+            : '${salon.distanceKm!.toStringAsFixed(1)} km away')
+        : distance;
 
     return SnipCard(
       onTap: onTap,
@@ -50,35 +58,56 @@ class SalonCard extends StatelessWidget {
                           imageUrl: image,
                           fit: BoxFit.cover,
                           placeholder: (_, __) =>
-                              Container(color: SnipColors.lightGray),
+                              Container(color: context.snipFill),
                           errorWidget: (_, __, ___) => _placeholder(),
                         )
                       : _placeholder(),
                 ),
               ),
               Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: SnipColors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: SnipColors.dark.withValues(alpha: 0.1),
-                        blurRadius: 4,
+                top: 8,
+                right: 8,
+                child: SnipFavoriteButton(salonId: salon.id, size: 16),
+              ),
+              if (salon.distanceKm != null)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SnipColors.dark.withValues(alpha: 0.8),
+                      borderRadius:
+                          BorderRadius.circular(SnipSpacing.radiusPill),
+                      border: Border.all(
+                        color: SnipColors.primary.withValues(alpha: 0.6),
+                        width: 1,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border,
-                    size: 18,
-                    color: SnipColors.dark,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.near_me,
+                          size: 11,
+                          color: SnipColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          formattedDistance,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           Padding(
@@ -86,15 +115,51 @@ class SalonCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (salon.recommendationReason != null &&
+                    salon.recommendationReason!.isNotEmpty) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: SnipColors.primary.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(SnipSpacing.radiusPill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 12,
+                          color: SnipColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            salon.recommendationReason!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: SnipColors.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         salon.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: SnipColors.dark,
+                          color: context.snipText,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -122,18 +187,18 @@ class SalonCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      rating.toStringAsFixed(1),
-                      style: const TextStyle(
+                      effectiveRating.toStringAsFixed(1),
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: SnipColors.dark,
+                        color: context.snipText,
                       ),
                     ),
                     Text(
-                      ' ($reviewCount)',
-                      style: const TextStyle(
+                      ' ($effectiveReviews)',
+                      style: TextStyle(
                         fontSize: 12,
-                        color: SnipColors.secondaryText,
+                        color: context.snipMuted,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -148,10 +213,10 @@ class SalonCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${salon.city ?? salon.address ?? 'Colombo 05'} • $distance',
-                        style: const TextStyle(
+                        '${salon.city ?? salon.address ?? 'Colombo 05'} • $formattedDistance',
+                        style: TextStyle(
                           fontSize: 12,
-                          color: SnipColors.secondaryText,
+                          color: context.snipMuted,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -171,16 +236,16 @@ class SalonCard extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: SnipColors.lightGray,
+                          color: context.snipFill,
                           borderRadius:
                               BorderRadius.circular(SnipSpacing.radiusPill),
                         ),
                         child: Text(
                           tag,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: SnipColors.secondaryText,
+                            color: context.snipMuted,
                           ),
                         ),
                       );

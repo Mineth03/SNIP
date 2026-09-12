@@ -52,7 +52,7 @@ class EmptyState extends StatelessWidget {
               Text(
                 body,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: SnipColors.secondaryText,
+                      color: context.snipMuted,
                     ),
                 textAlign: TextAlign.center,
               ),

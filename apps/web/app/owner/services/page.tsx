@@ -174,7 +174,7 @@ export default function OwnerServicesPage() {
               </select>
             </div>
             <div>
-              <Label htmlFor="price">Price (INR)</Label>
+              <Label htmlFor="price">Price (LKR)</Label>
               <Input id="price" type="number" {...form.register("price", { valueAsNumber: true })} />
             </div>
             <div>

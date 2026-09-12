@@ -1,6 +1,7 @@
 import { Bell, Menu } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/snip/theme-toggle";
 
 export function Topbar({
   title,
@@ -43,6 +44,7 @@ export function Topbar({
       </div>
       <div className="flex items-center gap-2">
         {actions}
+        <ThemeToggle />
         <Button type="button" variant="ghost" size="icon" aria-label="Notifications">
           <Bell className="h-5 w-5 text-snip-muted" />
         </Button>

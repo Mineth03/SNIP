@@ -1,28 +1,20 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 
-export const metadata = { title: "Reset password" };
+export const metadata = { title: "Set New Password | SNIP" };
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center snip-gradient-hero px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-snip-charcoal">
-            SNIP
-          </Link>
-          <p className="mt-2 text-sm text-snip-muted">Choose a new password</p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Reset password</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResetPasswordForm />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthShell
+      title="Create new password"
+      subtitle="Ensure your account stays safe by choosing a strong, unique password"
+      mode="login"
+    >
+      <Suspense fallback={<LoadingSkeleton rows={2} />}>
+        <ResetPasswordForm />
+      </Suspense>
+    </AuthShell>
   );
 }

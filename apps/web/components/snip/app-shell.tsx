@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LogOut, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { RealtimeNotificationListener } from "@/components/snip/realtime-notification-listener";
 import { Sidebar, type NavItem } from "@/components/snip/sidebar";
 import { Topbar } from "@/components/snip/topbar";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export function AppShell({
         </div>
       ) : null}
 
+      <RealtimeNotificationListener />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           title={title}

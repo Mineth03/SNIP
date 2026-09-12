@@ -1,34 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Images, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { createClient } from "@/lib/supabase/client";
+import { deleteImageFromSupabase } from "@/lib/supabase/storage";
 import type { SalonGallery } from "@/types/database";
-
-const schema = z.object({
-  image_url: z.url("Enter a valid image URL"),
-  caption: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
 
 export default function OwnerGalleryPage() {
   const [salonId, setSalonId] = useState<string | null>(null);
   const [items, setItems] = useState<SalonGallery[]>([]);
   const [loading, setLoading] = useState(true);
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { image_url: "", caption: "" },
-  });
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     const supabase = createClient();
@@ -57,26 +48,58 @@ export default function OwnerGalleryPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- client mount data fetch
     void load();
   }, []);
 
-  async function onSubmit(values: FormValues) {
-    if (!salonId) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("salon_gallery").insert({
-      salon_id: salonId,
-      image_url: values.image_url,
-      caption: values.caption || null,
-      sort_order: items.length,
-    });
-    if (error) {
-      toast.error(error.message);
+  async function handleAddImage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!salonId || !newImageUrl) {
+      toast.error("Please upload or provide an image");
       return;
     }
-    toast.success("Image added");
-    form.reset();
-    await load();
+
+    setSubmitting(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("salon_gallery").insert({
+        salon_id: salonId,
+        image_url: newImageUrl,
+        caption: caption.trim() || null,
+        sort_order: items.length,
+      });
+
+      if (error) throw error;
+
+      toast.success("Photo added to gallery!");
+      setNewImageUrl("");
+      setCaption("");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add image");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteImage(item: SalonGallery) {
+    if (!confirm("Are you sure you want to delete this photo?")) return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("salon_gallery")
+        .delete()
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      // Clean up from storage bucket
+      void deleteImageFromSupabase("salon-images", item.image_url);
+
+      toast.success("Photo deleted");
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete photo");
+    }
   }
 
   if (loading) return <p className="text-sm text-snip-muted">Loading gallery...</p>;
@@ -93,42 +116,103 @@ export default function OwnerGalleryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-snip-charcoal">Gallery</h2>
-        <p className="text-sm text-snip-muted">Showcase your salon’s best work.</p>
+        <h2 className="text-2xl font-bold tracking-tight text-snip-charcoal">
+          Salon Gallery
+        </h2>
+        <p className="text-sm text-snip-muted">
+          Upload interior, exterior, and showcase cuts to attract more clients.
+        </p>
       </div>
 
-      <Card>
+      {/* Upload New Image Card */}
+      <Card className="rounded-2xl border border-snip-border shadow-snip-sm">
         <CardHeader>
-          <CardTitle>Add image</CardTitle>
+          <CardTitle className="text-base font-bold text-snip-charcoal">
+            Upload Showcase Photo
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
-            <div>
-              <Label htmlFor="image_url">Image URL</Label>
-              <Input id="image_url" {...form.register("image_url")} />
-            </div>
-            <div>
-              <Label htmlFor="caption">Caption</Label>
-              <Input id="caption" {...form.register("caption")} />
-            </div>
-            <div className="flex items-end">
-              <Button type="submit">Add</Button>
+          <form onSubmit={handleAddImage} className="space-y-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <ImageUploader
+                  value={newImageUrl}
+                  onChange={setNewImageUrl}
+                  onRemove={() => setNewImageUrl("")}
+                  bucket="salon-images"
+                  folder={`salons/${salonId}`}
+                  label="Select or Drag Image"
+                  description="JPG, PNG, or WebP up to 10MB"
+                  variant="card"
+                  maxSizeMB={10}
+                />
+              </div>
+
+              <div className="flex flex-col justify-between space-y-4">
+                <div>
+                  <Label htmlFor="caption" className="text-xs font-semibold text-snip-muted">
+                    Photo Caption (optional)
+                  </Label>
+                  <Input
+                    id="caption"
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="e.g. Modern fade styling station"
+                    className="mt-1"
+                  />
+                  <p className="mt-1 text-[11px] text-snip-muted">
+                    Add a short descriptive note for prospective clients.
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={submitting || !newImageUrl}
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4" />
+                  {submitting ? "Saving..." : "Add to Gallery"}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
       </Card>
 
+      {/* Gallery Showcase Grid */}
       {items.length === 0 ? (
-        <EmptyState icon={Images} title="Gallery is empty" description="Add image URLs to build your showcase." />
+        <EmptyState
+          icon={Images}
+          title="Gallery is empty"
+          description="Upload your salon's first showcase photo above."
+        />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.image_url} alt={item.caption ?? ""} className="h-44 w-full object-cover" />
-              {item.caption ? (
-                <CardContent className="p-3 text-sm text-snip-muted">{item.caption}</CardContent>
-              ) : null}
+            <Card
+              key={item.id}
+              className="group overflow-hidden rounded-2xl border border-snip-border shadow-snip-sm transition-all hover:shadow-snip"
+            >
+              <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                <img
+                  src={item.image_url}
+                  alt={item.caption ?? "Salon photo"}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleDeleteImage(item)}
+                  aria-label="Delete photo"
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-2 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              {item.caption && (
+                <CardContent className="p-3 text-xs font-medium text-snip-charcoal">
+                  {item.caption}
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>

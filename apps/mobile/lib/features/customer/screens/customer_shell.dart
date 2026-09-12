@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../theme/snip_colors.dart';
-
 class CustomerShell extends StatelessWidget {
   const CustomerShell({super.key, required this.navigationShell});
 
@@ -15,8 +13,6 @@ class CustomerShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: navigationShell.goBranch,
-        backgroundColor: SnipColors.white,
-        indicatorColor: SnipColors.primary.withValues(alpha: 0.12),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

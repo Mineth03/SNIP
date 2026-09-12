@@ -25,12 +25,12 @@ class SnipSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: SnipColors.white,
+        color: context.snipCard,
         borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
-        border: Border.all(color: SnipColors.border),
+        border: Border.all(color: context.snipBorder),
         boxShadow: [
           BoxShadow(
-            color: SnipColors.dark.withValues(alpha: 0.04),
+            color: SnipColors.dark.withValues(alpha: context.isDark ? 0.25 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -46,15 +46,15 @@ class SnipSearchBar extends StatelessWidget {
               onSubmitted: onSubmitted,
               readOnly: readOnly,
               onTap: onTap,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                color: SnipColors.dark,
+                color: context.snipText,
                 fontWeight: FontWeight.w500,
               ),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: const TextStyle(
-                  color: SnipColors.secondaryText,
+                hintStyle: TextStyle(
+                  color: context.snipMuted,
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
                 ),

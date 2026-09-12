@@ -5,17 +5,20 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../models/booking.dart';
 import '../../../repositories/booking_repository.dart';
+import '../../../repositories/review_repository.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
+import '../../review/widgets/review_dialog.dart';
 
 final bookingTicketProvider =
-    FutureProvider.autoDispose.family((ref, String bookingId) {
-  return ref.watch(bookingRepositoryProvider).getBooking(bookingId);
+    StreamProvider.autoDispose.family<Booking?, String>((ref, String bookingId) {
+  return ref.watch(bookingRepositoryProvider).streamBooking(bookingId);
 });
 
 class BookingTicketScreen extends ConsumerStatefulWidget {
@@ -360,6 +363,80 @@ class _BookingTicketScreenState extends ConsumerState<BookingTicketScreen> {
 
               const SizedBox(height: SnipSpacing.lg),
 
+              // Review Prompt for Completed Appointments
+              if (booking.status == BookingStatus.completed) ...[
+                ref.watch(bookingReviewProvider(booking.id)).when(
+                      data: (review) {
+                        return Container(
+                          padding: const EdgeInsets.all(SnipSpacing.md),
+                          decoration: BoxDecoration(
+                            color: SnipColors.primaryMuted.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(SnipSpacing.radiusLg),
+                            border: Border.all(color: SnipColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.stars_rounded, color: SnipColors.primary, size: 22),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      review != null
+                                          ? 'Your Review: ${review.rating} / 5 Stars'
+                                          : 'How was your experience?',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: SnipColors.dark,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      ReviewDialog.show(
+                                        context,
+                                        bookingId: booking.id,
+                                        salonName: booking.salonName ?? 'the salon',
+                                        barberName: booking.barberName,
+                                        initialRating: review?.rating ?? 5,
+                                        initialComment: review?.comment ?? '',
+                                      );
+                                    },
+                                    child: Text(
+                                      review != null ? 'Edit' : 'Rate Now',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: SnipColors.primaryDark,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (review?.comment != null && review!.comment!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '"${review.comment}"',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                      color: SnipColors.secondaryText,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                const SizedBox(height: SnipSpacing.md),
+              ],
+
               // Action buttons: Add to Calendar & Reschedule
               SnipButton(
                 label: 'Add to Calendar',
@@ -400,11 +477,38 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
   bool _handling = false;
   String? _message;
 
-  Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_handling) return;
-    final barcode = capture.barcodes.firstOrNull?.rawValue;
-    if (barcode == null) return;
+  void _showManualInputDialog() {
+    final controller = TextEditingController(text: 'SNIP784629');
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter Ticket Code'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'e.g. SNIP784629 or UUID',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _processCode(controller.text.trim());
+            },
+            child: const Text('Check In'),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Future<void> _processCode(String code) async {
+    if (code.isEmpty || _handling) return;
     setState(() {
       _handling = true;
       _message = 'Validating check-in...';
@@ -412,7 +516,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     try {
       final booking =
-          await ref.read(bookingRepositoryProvider).checkInWithQr(barcode);
+          await ref.read(bookingRepositoryProvider).checkInWithQr(code);
       if (!mounted) return;
       setState(() {
         _message =
@@ -430,6 +534,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     }
   }
 
+  Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_handling) return;
+    final barcode = capture.barcodes.firstOrNull?.rawValue;
+    if (barcode == null) return;
+    _processCode(barcode);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -439,6 +550,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.keyboard_rounded),
+            tooltip: 'Enter code manually',
+            onPressed: _showManualInputDialog,
+          ),
+        ],
       ),
       body: Stack(
         children: [

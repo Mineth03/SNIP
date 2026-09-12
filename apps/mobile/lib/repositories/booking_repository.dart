@@ -69,9 +69,23 @@ class BookingRepository {
   }
 
   Future<Booking> checkInWithQr(String qrToken) async {
+    String token = qrToken.trim();
+    if (token.toUpperCase().startsWith('SNIP')) {
+      final code = token.substring(4).toLowerCase();
+      final res = await _client
+          .from('bookings')
+          .select('qr_token')
+          .ilike('qr_token', '$code%')
+          .limit(1)
+          .maybeSingle();
+      if (res != null && res['qr_token'] != null) {
+        token = res['qr_token'] as String;
+      }
+    }
+
     final response = await _client.rpc(
       'check_in_with_qr',
-      params: {'p_qr_token': qrToken},
+      params: {'p_qr_token': token},
     );
     return Booking.fromJson(Map<String, dynamic>.from(response as Map));
   }
@@ -152,5 +166,44 @@ class BookingRepository {
     return (data as List<dynamic>)
         .map((e) => Booking.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Live real-time stream of a single booking (for Ticket screen)
+  Stream<Booking?> streamBooking(String id) {
+    return _client
+        .from('bookings')
+        .stream(primaryKey: ['id'])
+        .eq('id', id)
+        .asyncMap((list) async {
+          if (list.isEmpty) return null;
+          return getBooking(id);
+        });
+  }
+
+  /// Live real-time stream of a barber's appointments
+  Stream<List<Booking>> streamBarberBookings(String barberId, {DateTime? day}) {
+    return _client
+        .from('bookings')
+        .stream(primaryKey: ['id'])
+        .eq('barber_id', barberId)
+        .asyncMap((_) => getBarberBookings(barberId, day: day));
+  }
+
+  /// Live real-time stream of salon appointments for Owner
+  Stream<List<Booking>> streamSalonBookings(String salonId, {DateTime? day}) {
+    return _client
+        .from('bookings')
+        .stream(primaryKey: ['id'])
+        .eq('salon_id', salonId)
+        .asyncMap((_) => getSalonBookings(salonId, day: day));
+  }
+
+  /// Live real-time stream of customer appointments
+  Stream<List<Booking>> streamCustomerBookings(String customerId) {
+    return _client
+        .from('bookings')
+        .stream(primaryKey: ['id'])
+        .eq('customer_id', customerId)
+        .asyncMap((_) => getCustomerBookings(customerId));
   }
 }

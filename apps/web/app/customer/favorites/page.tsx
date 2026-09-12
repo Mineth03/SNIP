@@ -14,7 +14,7 @@ export default async function CustomerFavoritesPage() {
   const { data } = await supabase
     .from("favorites")
     .select("salon_id, salons(*)")
-    .eq("customer_id", profile.id)
+    .eq("user_id", profile.id)
     .order("created_at", { ascending: false });
 
   const salons =

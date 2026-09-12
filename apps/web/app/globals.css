@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --snip-teal: #14b8a6;
   --snip-primary: #14b8a6;
@@ -23,6 +25,29 @@
   --snip-shadow-sm: 0 1px 3px rgba(31, 41, 55, 0.05);
   --background: var(--snip-bg);
   --foreground: var(--snip-charcoal);
+  color-scheme: light;
+}
+
+.dark {
+  --snip-teal: #14b8a6;
+  --snip-primary: #14b8a6;
+  --snip-primary-hover: #2dd4bf;
+  --snip-charcoal: #f1f5f9;
+  --snip-bg: #0b1120;
+  --snip-bg-muted: #1e293b;
+  --snip-white: #131d31;
+  --snip-border: #26354a;
+  --snip-muted: #94a3b8;
+  --snip-success: #10b981;
+  --snip-warning: #f97316;
+  --snip-danger: #ef4444;
+  --snip-info: #3b82f6;
+  --snip-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.5);
+  --snip-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --background: var(--snip-bg);
+  --foreground: var(--snip-charcoal);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -114,4 +139,79 @@ a {
       transparent 60%
     ),
     linear-gradient(180deg, #ffffff 0%, var(--snip-bg) 100%);
+}
+
+.dark .snip-gradient-hero {
+  background:
+    radial-gradient(
+      1200px 500px at 15% -10%,
+      color-mix(in srgb, var(--snip-primary) 18%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      900px 420px at 85% 0%,
+      color-mix(in srgb, var(--snip-teal) 14%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #0b1120 0%, var(--snip-bg) 100%);
+}
+
+/* Automatic surface & component adaptivity in dark mode */
+.dark .bg-white {
+  background-color: var(--snip-white) !important;
+}
+
+.dark .bg-white\/90 {
+  background-color: color-mix(in srgb, var(--snip-white) 90%, transparent) !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: color-mix(in srgb, var(--snip-white) 95%, transparent) !important;
+}
+
+.dark .bg-white\/80 {
+  background-color: color-mix(in srgb, var(--snip-white) 80%, transparent) !important;
+}
+
+.dark .bg-white\/85 {
+  background-color: color-mix(in srgb, var(--snip-white) 85%, transparent) !important;
+}
+
+.dark .bg-white\/70 {
+  background-color: color-mix(in srgb, var(--snip-white) 70%, transparent) !important;
+}
+
+/* Ensure dark backgrounds using charcoal stay dark charcoal in dark mode */
+.dark .bg-snip-charcoal {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-snip-charcoal\/90 {
+  background-color: rgb(15 23 42 / 0.9) !important;
+}
+
+.dark .bg-snip-charcoal\/80 {
+  background-color: rgb(15 23 42 / 0.8) !important;
+}
+
+.dark .bg-snip-charcoal\/40 {
+  background-color: rgb(15 23 42 / 0.4) !important;
+}
+
+.dark .bg-snip-charcoal\/10 {
+  background-color: rgb(241 245 249 / 0.1) !important;
+}
+
+.dark .hover\:bg-snip-bg:hover {
+  background-color: var(--snip-bg-muted) !important;
+}
+
+.dark .hover\:bg-snip-bg-muted:hover {
+  background-color: #26354a !important;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color-scheme: dark;
 }

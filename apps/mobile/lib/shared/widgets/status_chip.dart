@@ -11,7 +11,7 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, bg) = _colors(status);
+    final (color, bg) = _colors(context, status);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 10,
@@ -42,20 +42,28 @@ class StatusChip extends StatelessWidget {
     }
   }
 
-  (Color, Color) _colors(BookingStatus status) {
+  (Color, Color) _colors(BuildContext context, BookingStatus status) {
     switch (status) {
       case BookingStatus.confirmed:
-        return (const Color(0xFF059669), const Color(0xFFD1FAE5));
+        return context.isDark
+            ? (const Color(0xFF34D399), const Color(0xFF064E3B))
+            : (const Color(0xFF059669), const Color(0xFFD1FAE5));
       case BookingStatus.checkedIn:
       case BookingStatus.inProgress:
-        return (const Color(0xFFEA580C), const Color(0xFFFFEDD5));
+        return context.isDark
+            ? (const Color(0xFFFB923C), const Color(0xFF7C2D12))
+            : (const Color(0xFFEA580C), const Color(0xFFFFEDD5));
       case BookingStatus.completed:
-        return (const Color(0xFF0D9488), const Color(0xFFCCFBF1));
+        return context.isDark
+            ? (SnipColors.primaryLight, const Color(0xFF134E4A))
+            : (const Color(0xFF0D9488), const Color(0xFFCCFBF1));
       case BookingStatus.cancelled:
       case BookingStatus.noShow:
-        return (const Color(0xFFDC2626), const Color(0xFFFEE2E2));
+        return context.isDark
+            ? (const Color(0xFFF87171), const Color(0xFF7F1D1D))
+            : (const Color(0xFFDC2626), const Color(0xFFFEE2E2));
       case BookingStatus.pending:
-        return (SnipColors.secondaryText, SnipColors.lightGray);
+        return (context.snipMuted, context.snipFill);
     }
   }
 }

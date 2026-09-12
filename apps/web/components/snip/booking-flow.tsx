@@ -95,7 +95,14 @@ export function BookingFlow({
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Booking failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error("Please sign in to complete your booking");
+          router.push(`/login?next=/salons/${slug}/book`);
+          return;
+        }
+        throw new Error(json.error || "Booking failed");
+      }
       toast.success("Booking confirmed");
       router.push(`/customer/bookings/${json.booking.id}`);
       router.refresh();

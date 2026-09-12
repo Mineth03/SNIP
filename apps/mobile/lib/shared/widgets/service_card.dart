@@ -34,8 +34,8 @@ class ServiceCard extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               color: selected
-                  ? SnipColors.primaryMuted
-                  : SnipColors.lightGray,
+                  ? context.snipPrimarySoft
+                  : context.snipFill,
               borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
             ),
             child: Icon(
@@ -51,18 +51,18 @@ class ServiceCard extends StatelessWidget {
               children: [
                 Text(
                   service.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: SnipColors.dark,
+                    color: context.snipText,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${service.durationMinutes} mins · ${serviceCategoryLabel(service.category)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: SnipColors.secondaryText,
+                    color: context.snipMuted,
                   ),
                 ),
               ],
@@ -71,10 +71,10 @@ class ServiceCard extends StatelessWidget {
           trailing ??
               Text(
                 'LKR ${service.price.toStringAsFixed(0)}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: SnipColors.dark,
+                  color: context.snipText,
                 ),
               ),
         ],

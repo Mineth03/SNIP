@@ -22,11 +22,12 @@ class SnipCard extends StatelessWidget {
     final content = Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: SnipColors.white,
+        color: context.snipCard,
         borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+        border: Border.all(color: context.snipBorder),
         boxShadow: [
           BoxShadow(
-            color: SnipColors.dark.withValues(alpha: 0.06),
+            color: SnipColors.dark.withValues(alpha: context.isDark ? 0.28 : 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

@@ -59,6 +59,7 @@ export default async function BarberAppointmentsPage() {
                 start={row.appointment_start}
                 price={row.price}
                 status={row.status}
+                canManage={true}
               />
             );
           })}

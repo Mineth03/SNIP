@@ -48,8 +48,10 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
           width: widget.width,
           decoration: BoxDecoration(
             color: Color.lerp(
-              SnipColors.lightGray,
-              SnipColors.border,
+              context.isDark
+                  ? SnipColors.darkSurfaceElevated
+                  : SnipColors.lightGray,
+              context.isDark ? SnipColors.darkBorder : SnipColors.border,
               _controller.value,
             ),
             borderRadius: BorderRadius.circular(
@@ -69,8 +71,9 @@ class SalonCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: SnipColors.white,
+        color: context.snipCard,
         borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+        border: Border.all(color: context.snipBorder),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,

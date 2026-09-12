@@ -5,6 +5,7 @@ import '../config/supabase.dart';
 import '../models/barber.dart';
 import '../models/salon.dart';
 import '../models/service.dart';
+import '../models/user_activity.dart';
 
 final salonRepositoryProvider = Provider<SalonRepository>((ref) {
   return SalonRepository(supabase);
@@ -37,6 +38,98 @@ class SalonRepository {
     return (response as List<dynamic>)
         .map((e) => Salon.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<Salon>> getNearbySalons({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 50,
+    ServiceCategory? category,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final response = await _client.rpc(
+      'get_nearby_salons',
+      params: {
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+        'p_radius_km': radiusKm,
+        'p_category': category != null ? serviceCategoryToString(category) : null,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
+
+    return (response as List<dynamic>)
+        .map((e) => Salon.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<Salon>> getPersonalizedRecommendations({
+    String? userId,
+    double? latitude,
+    double? longitude,
+    int limit = 10,
+  }) async {
+    final response = await _client.rpc(
+      'get_personalized_recommendations',
+      params: {
+        'p_user_id': userId,
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+        'p_limit': limit,
+      },
+    );
+
+    return (response as List<dynamic>)
+        .map((e) => Salon.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<String?> logUserActivity({
+    required String activityType,
+    String? salonId,
+    String? serviceId,
+    ServiceCategory? category,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'log_user_activity',
+        params: {
+          'p_activity_type': activityType,
+          'p_salon_id': salonId,
+          'p_service_id': serviceId,
+          'p_category':
+              category != null ? serviceCategoryToString(category) : null,
+          'p_metadata': metadata ?? {},
+        },
+      );
+      return response as String?;
+    } catch (_) {
+      // Non-blocking telemetry
+      return null;
+    }
+  }
+
+  Future<List<UserRecentActivity>> getUserRecentActivity({
+    String? userId,
+    int limit = 5,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'get_user_recent_activity',
+        params: {
+          'p_user_id': userId,
+          'p_limit': limit,
+        },
+      );
+      return (response as List<dynamic>)
+          .map((e) => UserRecentActivity.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<Salon?> getSalon(String id) async {

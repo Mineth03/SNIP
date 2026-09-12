@@ -70,8 +70,8 @@ class SnipButton extends StatelessWidget {
       SnipButtonVariant.secondary => ElevatedButton(
           onPressed: isLoading ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: SnipColors.lightGray,
-            foregroundColor: SnipColors.dark,
+            backgroundColor: context.snipFill,
+            foregroundColor: context.snipText,
             elevation: 0,
             minimumSize: Size(expand ? double.infinity : 0, height),
             shape: RoundedRectangleBorder(
@@ -83,8 +83,8 @@ class SnipButton extends StatelessWidget {
       SnipButtonVariant.outline => OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
-            foregroundColor: SnipColors.dark,
-            side: const BorderSide(color: SnipColors.border, width: 1.5),
+            foregroundColor: context.snipText,
+            side: BorderSide(color: context.snipBorder, width: 1.5),
             minimumSize: Size(expand ? double.infinity : 0, height),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),

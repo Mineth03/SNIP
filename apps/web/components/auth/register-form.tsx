@@ -7,16 +7,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, Phone, Store, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getRoleHome } from "@/lib/auth/roles";
 import type { UserRole } from "@/types/database";
 
 const schema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
-  email: z.email("Enter a valid email"),
+  email: z.string().email("Enter a valid email address"),
   phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["customer", "salon_owner"]),
@@ -30,6 +28,8 @@ export function RegisterForm() {
   const initialRole =
     searchParams.get("role") === "salon_owner" ? "salon_owner" : "customer";
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -40,6 +40,8 @@ export function RegisterForm() {
       role: initialRole,
     },
   });
+
+  const selectedRole = form.watch("role");
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -74,13 +76,13 @@ export function RegisterForm() {
           }),
         }).catch(() => undefined);
 
-        toast.success("Account created");
+        toast.success("Welcome to SNIP! Account created successfully.");
         router.push(getRoleHome(values.role));
         router.refresh();
         return;
       }
 
-      toast.success("Check your email to confirm your account");
+      toast.success("Please check your email to confirm your account");
       router.push("/login");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to register");
@@ -90,71 +92,166 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
+      {/* Role Selector Pills */}
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 dark:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => form.setValue("role", "customer")}
+          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+            selectedRole === "customer"
+              ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+              : "text-slate-500 hover:text-slate-800 dark:text-slate-400"
+          }`}
+        >
+          <User className="h-3.5 w-3.5 text-snip-teal" />
+          <span>Client / Customer</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => form.setValue("role", "salon_owner")}
+          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+            selectedRole === "salon_owner"
+              ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
+              : "text-slate-500 hover:text-slate-800 dark:text-slate-400"
+          }`}
+        >
+          <Store className="h-3.5 w-3.5 text-snip-teal" />
+          <span>Salon Owner</span>
+        </button>
+      </div>
+
+      {/* Full Name */}
       <div>
-        <Label htmlFor="full_name">Full name</Label>
-        <Input id="full_name" {...form.register("full_name")} />
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <User className="h-4 w-4" />
+          </div>
+          <input
+            id="full_name"
+            type="text"
+            placeholder="Full name"
+            className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-snip-teal focus:outline-none focus:ring-2 focus:ring-snip-teal/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            {...form.register("full_name")}
+          />
+        </div>
         {form.formState.errors.full_name ? (
-          <p className="mt-1 text-xs text-snip-danger">
+          <p className="mt-1 pl-1 text-xs text-rose-500">
             {form.formState.errors.full_name.message}
           </p>
         ) : null}
       </div>
+
+      {/* Email Address */}
       <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" {...form.register("email")} />
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <Mail className="h-4 w-4" />
+          </div>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="Email address"
+            className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-snip-teal focus:outline-none focus:ring-2 focus:ring-snip-teal/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            {...form.register("email")}
+          />
+        </div>
         {form.formState.errors.email ? (
-          <p className="mt-1 text-xs text-snip-danger">
+          <p className="mt-1 pl-1 text-xs text-rose-500">
             {form.formState.errors.email.message}
           </p>
         ) : null}
       </div>
+
+      {/* Phone (Optional) */}
       <div>
-        <Label htmlFor="phone">Phone (optional)</Label>
-        <Input id="phone" type="tel" {...form.register("phone")} />
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <Phone className="h-4 w-4" />
+          </div>
+          <input
+            id="phone"
+            type="tel"
+            placeholder="Phone number (optional)"
+            className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-snip-teal focus:outline-none focus:ring-2 focus:ring-snip-teal/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            {...form.register("phone")}
+          />
+        </div>
       </div>
+
+      {/* Password */}
       <div>
-        <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" {...form.register("password")} />
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <Lock className="h-4 w-4" />
+          </div>
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="Password (min. 6 characters)"
+            className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-11 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-snip-teal focus:outline-none focus:ring-2 focus:ring-snip-teal/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            {...form.register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         {form.formState.errors.password ? (
-          <p className="mt-1 text-xs text-snip-danger">
+          <p className="mt-1 pl-1 text-xs text-rose-500">
             {form.formState.errors.password.message}
           </p>
         ) : null}
       </div>
-      <div>
-        <Label>I am joining as</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {(
-            [
-              ["customer", "Customer"],
-              ["salon_owner", "Salon owner"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => form.setValue("role", value)}
-              className={`rounded-md border px-3 py-2.5 text-sm font-medium transition ${
-                form.watch("role") === value
-                  ? "border-snip-primary bg-snip-primary/10 text-snip-teal"
-                  : "border-snip-border text-snip-muted hover:bg-snip-bg-muted"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="group mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#14B8A6] font-bold text-white shadow-sm transition-all hover:bg-[#0D9488] active:scale-[0.99] disabled:opacity-60"
+      >
+        {loading ? (
+          <>
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <span>Creating account...</span>
+          </>
+        ) : (
+          <>
+            <span>Create account</span>
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </>
+        )}
+      </button>
+
+      {/* Divider */}
+      <div className="relative my-3">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-white px-3 text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+            Already have an account?
+          </span>
         </div>
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Creating account..." : "Create account"}
-      </Button>
-      <p className="text-center text-sm text-snip-muted">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-snip-teal">
-          Sign in
+
+      {/* Sign In Link */}
+      <div className="text-center">
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-1 text-sm font-bold text-snip-teal hover:underline transition-colors"
+        >
+          <span>Sign In</span>
+          <ArrowRight className="h-3.5 w-3.5" />
         </Link>
-      </p>
+      </div>
     </form>
   );
 }

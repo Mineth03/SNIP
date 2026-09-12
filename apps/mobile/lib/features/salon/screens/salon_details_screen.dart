@@ -4,14 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../models/service.dart';
-import '../../../repositories/favorites_repository.dart';
+import '../../../repositories/review_repository.dart';
 import '../../../repositories/salon_repository.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/favorite_button.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
-import '../../auth/providers/auth_providers.dart';
 
 final salonDetailProvider =
     FutureProvider.autoDispose.family((ref, String salonId) {
@@ -44,11 +44,21 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
   static const _tabs = ['Services', 'Barbers', 'Reviews', 'About'];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(salonRepositoryProvider).logUserActivity(
+            activityType: 'view_salon',
+            salonId: widget.salonId,
+          );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final salonAsync = ref.watch(salonDetailProvider(widget.salonId));
     final servicesAsync = ref.watch(salonServicesProvider(widget.salonId));
     final barbersAsync = ref.watch(salonBarbersProvider(widget.salonId));
-    final profile = ref.watch(currentProfileProvider).valueOrNull;
 
     return salonAsync.when(
       loading: () => const Scaffold(
@@ -69,9 +79,9 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
         }
 
         return Scaffold(
-          backgroundColor: SnipColors.background,
+          backgroundColor: context.snipScaffold,
           appBar: AppBar(
-            backgroundColor: SnipColors.white,
+            backgroundColor: context.snipCard,
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -79,10 +89,10 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
             ),
             title: Text(
               salon.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: SnipColors.dark,
+                color: context.snipText,
               ),
             ),
             actions: [
@@ -94,31 +104,20 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                   );
                 },
               ),
-              if (profile != null)
-                IconButton(
-                  icon: const Icon(Icons.favorite_border_rounded, size: 22),
-                  onPressed: () async {
-                    await ref.read(favoritesRepositoryProvider).toggleFavorite(
-                          userId: profile.id,
-                          salonId: widget.salonId,
-                        );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Saved to favorites')),
-                      );
-                    }
-                  },
-                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: SnipFavoriteButton(salonId: widget.salonId, size: 20),
+              ),
             ],
           ),
           bottomNavigationBar: Container(
             padding: const EdgeInsets.all(SnipSpacing.md),
             decoration: BoxDecoration(
-              color: SnipColors.white,
-              border: Border(top: BorderSide(color: SnipColors.border)),
+              color: context.snipCard,
+              border: Border(top: BorderSide(color: context.snipBorder)),
               boxShadow: [
                 BoxShadow(
-                  color: SnipColors.dark.withValues(alpha: 0.05),
+                  color: context.snipText.withValues(alpha: context.isDark ? 0.3 : 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -143,7 +142,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
               children: [
                 // Salon subtitle info
                 Container(
-                  color: SnipColors.white,
+                  color: context.snipCard,
                   padding: const EdgeInsets.symmetric(
                     horizontal: SnipSpacing.md,
                     vertical: SnipSpacing.sm,
@@ -156,15 +155,15 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                         color: Color(0xFFFBBF24),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
+                        Text(
                         '4.8',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: SnipColors.dark,
+                          color: context.snipText,
                         ),
                       ),
-                      const Text(
+                        Text(
                         ' (320 reviews)',
                         style: TextStyle(
                           fontSize: 12,
@@ -184,7 +183,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                       Expanded(
                         child: Text(
                           '${salon.city ?? salon.address ?? 'Colombo 05'} • Open till 9:00 PM',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: SnipColors.secondaryText,
                             fontWeight: FontWeight.w500,
@@ -199,7 +198,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
 
                 // 3 Photo Thumbnails Gallery
                 Container(
-                  color: SnipColors.white,
+                  color: context.snipCard,
                   padding: const EdgeInsets.fromLTRB(
                     SnipSpacing.md,
                     0,
@@ -215,7 +214,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                               BorderRadius.circular(SnipSpacing.radiusMd),
                           child: Container(
                             height: 110,
-                            color: SnipColors.lightGray,
+                            color: context.snipFill,
                             child: salon.coverUrl != null
                                 ? CachedNetworkImage(
                                     imageUrl: salon.coverUrl!,
@@ -234,7 +233,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                               BorderRadius.circular(SnipSpacing.radiusMd),
                           child: Container(
                             height: 110,
-                            color: SnipColors.lightGray,
+                            color: context.snipFill,
                             child: _galleryFallback(2),
                           ),
                         ),
@@ -246,7 +245,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                               BorderRadius.circular(SnipSpacing.radiusMd),
                           child: Container(
                             height: 110,
-                            color: SnipColors.lightGray,
+                            color: context.snipFill,
                             child: _galleryFallback(3),
                           ),
                         ),
@@ -259,7 +258,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
 
                 // Horizontal Tab selection pills
                 Container(
-                  color: SnipColors.white,
+                  color: context.snipCard,
                   padding: const EdgeInsets.symmetric(
                     horizontal: SnipSpacing.md,
                     vertical: SnipSpacing.sm,
@@ -280,7 +279,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? SnipColors.primary
-                                  : SnipColors.lightGray,
+                                  : context.snipFill,
                               borderRadius:
                                   BorderRadius.circular(SnipSpacing.radiusPill),
                             ),
@@ -291,7 +290,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                                 fontWeight: FontWeight.w700,
                                 color: isSelected
                                     ? SnipColors.white
-                                    : SnipColors.dark,
+                                    : context.snipText,
                               ),
                             ),
                           ),
@@ -303,7 +302,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
 
                 const SizedBox(height: SnipSpacing.md),
 
-                // Tab Content: Services
+                // Tab Content: Services (0)
                 if (_activeTab == 0) ...[
                   Padding(
                     padding:
@@ -311,12 +310,12 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                          Text(
                           'Popular Services',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: SnipColors.dark,
+                            color: context.snipText,
                           ),
                         ),
                         Text(
@@ -392,7 +391,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                           return Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: SnipColors.white,
+                              color: context.snipCard,
                               borderRadius:
                                   BorderRadius.circular(SnipSpacing.radiusMd),
                               border: Border.all(
@@ -408,7 +407,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: SnipColors.primaryMuted,
+                                    color: context.snipPrimarySoft,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
@@ -425,16 +424,16 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                                     children: [
                                       Text(
                                         s.name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w700,
-                                          color: SnipColors.dark,
+                                          color: context.snipText,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         '${s.durationMinutes} mins',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           color: SnipColors.secondaryText,
                                         ),
@@ -444,10 +443,10 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                                 ),
                                 Text(
                                   'LKR ${s.price.toStringAsFixed(0)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: SnipColors.dark,
+                                    color: context.snipText,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -467,7 +466,7 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? SnipColors.primary
-                                          : SnipColors.primaryMuted,
+                                          : context.snipPrimarySoft,
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
@@ -488,109 +487,358 @@ class _SalonDetailsScreenState extends ConsumerState<SalonDetailsScreen> {
                       );
                     },
                   ),
-                ],
 
-                // Barbers Row
-                const SizedBox(height: SnipSpacing.lg),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Choose Your Barber',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: SnipColors.dark,
+                  // Barbers Row
+                  const SizedBox(height: SnipSpacing.lg),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                          Text(
+                          'Choose Your Barber',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: context.snipText,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'See All',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: SnipColors.primary,
+                        InkWell(
+                          onTap: () => setState(() => _activeTab = 1),
+                          child: const Text(
+                            'See All',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: SnipColors.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: SnipSpacing.sm),
-                barbersAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (barbers) {
-                    final displayBarbers = [
-                      ('Ravi', '4.9'),
-                      ('Kamal', '4.8'),
-                      ('Isuru', '4.7'),
-                      ('Nuwan', '4.6'),
-                    ];
-
-                    return SizedBox(
-                      height: 100,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: SnipSpacing.md,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: displayBarbers.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 16),
-                        itemBuilder: (context, index) {
-                          final item = displayBarbers[index];
-                          final isKamal = item.$1 == 'Kamal';
-                          return Column(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isKamal
-                                        ? SnipColors.primary
-                                        : Colors.transparent,
-                                    width: 2.5,
-                                  ),
-                                ),
-                                child: SnipAvatar(
-                                  name: item.$1,
+                  const SizedBox(height: SnipSpacing.sm),
+                  barbersAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (barbers) {
+                      return SizedBox(
+                        height: 100,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: SnipSpacing.md,
+                          ),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: barbers.isNotEmpty ? barbers.length : 1,
+                          separatorBuilder: (_, __) => const SizedBox(width: 16),
+                          itemBuilder: (context, index) {
+                            final barberName = barbers.isNotEmpty
+                                ? barbers[index].displayName
+                                : 'Kamal Perera';
+                            return Column(
+                              children: [
+                                SnipAvatar(
+                                  name: barberName,
                                   size: 52,
                                 ),
-                              ),
-                              const SizedBox(height: 6),
+                                const SizedBox(height: 6),
+                                Text(
+                                  barberName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.snipText,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ],
+
+                // Tab Content: Barbers (1)
+                if (_activeTab == 1) ...[
+                  barbersAsync.when(
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(color: SnipColors.primary),
+                      ),
+                    ),
+                    error: (e, _) => Center(child: Text('$e')),
+                    data: (barbers) {
+                      if (barbers.isEmpty) {
+                        return const EmptyState(
+                          title: 'No stylists listed yet',
+                          description: 'Stylists will be available soon.',
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
+                        itemCount: barbers.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: SnipSpacing.sm),
+                        itemBuilder: (ctx, i) {
+                          final b = barbers[i];
+                          return Container(
+                            padding: const EdgeInsets.all(SnipSpacing.md),
+                            decoration: BoxDecoration(
+                              color: context.snipCard,
+                              borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+                              border: Border.all(color: context.snipBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                SnipAvatar(
+                                  imageUrl: b.avatarUrl,
+                                  name: b.displayName,
+                                  size: 48,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        b.displayName,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.snipText,
+                                        ),
+                                      ),
+                                      if (b.specializations.isNotEmpty)
+                                        Text(
+                                          b.specializations.join(', '),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: SnipColors.secondaryText,
+                                          ),
+                                        ),
+                                      if (b.bio != null && b.bio!.isNotEmpty)
+                                        Text(
+                                          b.bio!,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: SnipColors.textMuted,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+
+                // Tab Content: Reviews (2)
+                if (_activeTab == 2) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
+                    child: Container(
+                      padding: const EdgeInsets.all(SnipSpacing.md),
+                      decoration: BoxDecoration(
+                        color: context.snipCard,
+                        borderRadius: BorderRadius.circular(SnipSpacing.radiusLg),
+                        border: Border.all(color: context.snipBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star_rounded, size: 36, color: Color(0xFFFBBF24)),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                item.$1,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: SnipColors.dark,
+                                salon.avgRating > 0 ? salon.avgRating.toStringAsFixed(1) : 'New',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: context.snipText,
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    size: 14,
-                                    color: Color(0xFFFBBF24),
-                                  ),
-                                  Text(
-                                    item.$2,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: SnipColors.secondaryText,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                '${salon.reviewCount} ${salon.reviewCount == 1 ? "review" : "reviews"}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: SnipColors.secondaryText,
+                                ),
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: SnipSpacing.md),
+                  ref.watch(salonReviewsProvider(salon.id)).when(
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: CircularProgressIndicator(color: SnipColors.primary),
+                          ),
+                        ),
+                        error: (e, _) => Center(child: Text('$e')),
+                        data: (reviews) {
+                          if (reviews.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: Center(
+                                child: Text(
+                                  'No reviews yet. Be the first to review after your visit!',
+                                  style: TextStyle(color: SnipColors.secondaryText, fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
+                            itemCount: reviews.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: SnipSpacing.sm),
+                            itemBuilder: (ctx, i) {
+                              final r = reviews[i];
+                              return Container(
+                                padding: const EdgeInsets.all(SnipSpacing.md),
+                                decoration: BoxDecoration(
+                                  color: context.snipCard,
+                                  borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
+                                  border: Border.all(color: context.snipBorder),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        SnipAvatar(
+                                          imageUrl: r.customerAvatarUrl,
+                                          name: r.customerName ?? 'Guest',
+                                          size: 32,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            r.customerName ?? 'Verified Client',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.snipText,
+                                            ),
+                                          ),
+                                        ),
+                                        Row(
+                                          children: List.generate(
+                                            5,
+                                            (sIdx) => Icon(
+                                              Icons.star_rounded,
+                                              size: 14,
+                                              color: sIdx < r.rating
+                                                  ? const Color(0xFFFBBF24)
+                                                  : SnipColors.border,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (r.comment != null && r.comment!.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        r.comment!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: context.snipText,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
-                    );
-                  },
-                ),
+                ],
+
+                // Tab Content: About (3)
+                if (_activeTab == 3) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: SnipSpacing.md),
+                    child: Container(
+                      padding: const EdgeInsets.all(SnipSpacing.md),
+                      decoration: BoxDecoration(
+                        color: context.snipCard,
+                        borderRadius: BorderRadius.circular(SnipSpacing.radiusLg),
+                        border: Border.all(color: context.snipBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                            Text(
+                            'About the Salon',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: context.snipText,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            salon.description ??
+                                'Experience the highest standard in barbering and styling with SNIP.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: SnipColors.secondaryText,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          if (salon.address != null || salon.city != null) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined, size: 18, color: SnipColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    [salon.address, salon.city].where((s) => s != null && s.isNotEmpty).join(', '),
+                                    style: TextStyle(fontSize: 13, color: context.snipText),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          if (salon.phone != null) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.phone_outlined, size: 18, color: SnipColors.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  salon.phone!,
+                                  style: TextStyle(fontSize: 13, color: context.snipText),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: SnipSpacing.xl),
               ],

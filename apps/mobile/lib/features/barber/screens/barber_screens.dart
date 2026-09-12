@@ -12,6 +12,7 @@ import '../../../shared/widgets/loading_skeleton.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/theme_toggle_button.dart';
 import '../../../theme/snip_colors.dart';
 import '../../../theme/snip_spacing.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -66,19 +67,19 @@ final barberProfileProvider = FutureProvider.autoDispose((ref) async {
   return ref.watch(salonRepositoryProvider).getBarberByProfile(profile.id);
 });
 
-final barberTodayProvider = FutureProvider.autoDispose((ref) async {
-  final barber = await ref.watch(barberProfileProvider.future);
-  if (barber == null) return <Booking>[];
-  return ref.watch(bookingRepositoryProvider).getBarberBookings(
+final barberTodayProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+  final barber = ref.watch(barberProfileProvider).valueOrNull;
+  if (barber == null) return Stream.value(<Booking>[]);
+  return ref.watch(bookingRepositoryProvider).streamBarberBookings(
         barber.id,
         day: DateTime.now(),
       );
 });
 
-final barberAppointmentsProvider = FutureProvider.autoDispose((ref) async {
-  final barber = await ref.watch(barberProfileProvider.future);
-  if (barber == null) return <Booking>[];
-  return ref.watch(bookingRepositoryProvider).getBarberBookings(barber.id);
+final barberAppointmentsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+  final barber = ref.watch(barberProfileProvider).valueOrNull;
+  if (barber == null) return Stream.value(<Booking>[]);
+  return ref.watch(bookingRepositoryProvider).streamBarberBookings(barber.id);
 });
 
 final barberScheduleProvider = FutureProvider.autoDispose((ref) async {
@@ -105,7 +106,6 @@ class _BarberDashboardScreenState extends ConsumerState<BarberDashboardScreen> {
     final name = profile?.fullName.split(' ').first ?? 'Kamal';
 
     return Scaffold(
-      backgroundColor: SnipColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           color: SnipColors.primary,
@@ -122,10 +122,10 @@ class _BarberDashboardScreenState extends ConsumerState<BarberDashboardScreen> {
                     children: [
                       Text(
                         'Hello, $name!',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
-                          color: SnipColors.dark,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -140,13 +140,14 @@ class _BarberDashboardScreenState extends ConsumerState<BarberDashboardScreen> {
                   ),
                   Row(
                     children: [
+                      const ThemeToggleButton(size: 22),
                       Stack(
                         children: [
                           IconButton(
                             onPressed: () => context.push('/notifications'),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.notifications_none_rounded,
-                              color: SnipColors.dark,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 24,
                             ),
                           ),
@@ -376,8 +377,6 @@ class _BarberTimelineCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final timeStr =
         DateFormat('hh:mm a').format(booking.appointmentStart.toLocal());
-    final isConfirmedFirst =
-        booking.status == BookingStatus.confirmed && timeStr.startsWith('10');
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -433,86 +432,114 @@ class _BarberTimelineCard extends ConsumerWidget {
               ],
             ),
           ),
-          isConfirmedFirst
-              ? OutlinedButton.icon(
-                  onPressed: () => context.push('/qr/scan'),
-                  icon: const Icon(Icons.qr_code_scanner, size: 16),
-                  label: const Text('Scan QR', style: TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: SnipColors.primary,
-                    side: const BorderSide(color: SnipColors.primary),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(SnipSpacing.radiusPill),
-                    ),
-                  ),
-                )
-              : ElevatedButton(
-                  onPressed: () async {
-                    final next = _next(booking.status);
-                    if (next != null) {
-                      try {
-                        await ref
-                            .read(bookingRepositoryProvider)
-                            .transitionStatus(
-                              bookingId: booking.id,
-                              toStatus: next,
-                            );
-                        ref.invalidate(barberTodayProvider);
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
-                        }
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: SnipColors.primary,
-                    foregroundColor: SnipColors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(SnipSpacing.radiusPill),
-                    ),
-                  ),
-                  child: Text(
-                    booking.status == BookingStatus.checkedIn ||
-                            booking.status == BookingStatus.confirmed
-                        ? 'Start Service'
-                        : 'Complete',
-                    style: const TextStyle(
+          if (booking.status == BookingStatus.confirmed)
+            OutlinedButton.icon(
+              onPressed: () => context.push('/qr/scan'),
+              icon: const Icon(Icons.qr_code_scanner, size: 16),
+              label: const Text('Scan QR', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: SnipColors.primary,
+                side: const BorderSide(color: SnipColors.primary),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                minimumSize: const Size(0, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+                ),
+              ),
+            )
+          else if (booking.status == BookingStatus.checkedIn)
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  await ref.read(bookingRepositoryProvider).transitionStatus(
+                        bookingId: booking.id,
+                        toStatus: BookingStatus.inProgress,
+                      );
+                  ref.invalidate(barberTodayProvider);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.play_arrow_rounded, size: 16),
+              label: const Text(
+                'Start Service',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: SnipColors.primary,
+                foregroundColor: SnipColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: const Size(0, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+                ),
+              ),
+            )
+          else if (booking.status == BookingStatus.inProgress)
+            ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  await ref.read(bookingRepositoryProvider).transitionStatus(
+                        bookingId: booking.id,
+                        toStatus: BookingStatus.completed,
+                      );
+                  ref.invalidate(barberTodayProvider);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.check_rounded, size: 16),
+              label: const Text(
+                'Complete',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: SnipColors.success,
+                foregroundColor: SnipColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: const Size(0, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+                ),
+              ),
+            )
+          else if (booking.status == BookingStatus.completed)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: SnipColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(SnipSpacing.radiusPill),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 14, color: SnipColors.success),
+                  SizedBox(width: 4),
+                  Text(
+                    'Done',
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
+                      color: SnipColors.success,
                     ),
                   ),
-                ),
+                ],
+              ),
+            ),
         ],
       ),
     );
-  }
-
-  BookingStatus? _next(BookingStatus status) {
-    switch (status) {
-      case BookingStatus.confirmed:
-        return BookingStatus.checkedIn;
-      case BookingStatus.checkedIn:
-        return BookingStatus.inProgress;
-      case BookingStatus.inProgress:
-        return BookingStatus.completed;
-      default:
-        return null;
-    }
   }
 }
 
@@ -712,6 +739,8 @@ class BarberProfileScreen extends ConsumerWidget {
             title: const Text('Notifications'),
             onTap: () => context.push('/notifications'),
           ),
+          const Divider(),
+          const ThemeModeListTile(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: SnipColors.error),

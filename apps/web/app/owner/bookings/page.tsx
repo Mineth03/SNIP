@@ -68,6 +68,7 @@ export default async function OwnerBookingsPage() {
                 start={row.appointment_start}
                 price={row.price}
                 status={row.status}
+                canManage={true}
               />
             );
           })}

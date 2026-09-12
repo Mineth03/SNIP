@@ -23,7 +23,7 @@ class BookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = DateFormat('EEE, MMM d').format(booking.appointmentStart.toLocal());
     final time = DateFormat('h:mm a').format(booking.appointmentStart.toLocal());
-    final currency = NumberFormat.simpleCurrency();
+    final currency = NumberFormat.currency(symbol: 'LKR ', decimalDigits: 0);
 
     return SnipCard(
       onTap: onTap,
@@ -45,13 +45,13 @@ class BookingCard extends StatelessWidget {
           Text(
             booking.salonName ?? 'Salon',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: SnipColors.secondaryText,
+                  color: context.snipMuted,
                 ),
           ),
           const SizedBox(height: SnipSpacing.sm),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 14, color: SnipColors.secondaryText),
+              Icon(Icons.calendar_today_outlined, size: 14, color: context.snipMuted),
               const SizedBox(width: 4),
               Text('$date · $time', style: Theme.of(context).textTheme.bodySmall),
               const Spacer(),

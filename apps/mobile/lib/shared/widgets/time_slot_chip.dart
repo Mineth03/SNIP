@@ -33,15 +33,15 @@ class TimeSlotChip extends StatelessWidget {
           color: selected
               ? SnipColors.primary
               : enabled
-                  ? SnipColors.white
-                  : SnipColors.lightGray,
+                  ? context.snipCard
+                  : context.snipFill,
           borderRadius: BorderRadius.circular(SnipSpacing.radiusSm),
           border: Border.all(
             color: selected
                 ? SnipColors.primary
                 : enabled
-                    ? SnipColors.border
-                    : SnipColors.lightGray,
+                    ? context.snipBorder
+                    : context.snipFill,
           ),
         ),
         child: Text(
@@ -50,8 +50,8 @@ class TimeSlotChip extends StatelessWidget {
                 color: selected
                     ? SnipColors.white
                     : enabled
-                        ? SnipColors.dark
-                        : SnipColors.secondaryText,
+                        ? context.snipText
+                        : context.snipMuted,
               ),
         ),
       ),

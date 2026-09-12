@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, Search } from "lucide-react";
 import { BookingCard } from "@/components/snip/booking-card";
+import { CustomerRecommendations } from "@/components/snip/customer-recommendations";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -13,14 +14,30 @@ export default async function CustomerHomePage() {
   const profile = await requireRole(["customer", "admin"]);
   const supabase = await createClient();
 
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      "id, appointment_start, price, status, salons(name), services(name), barbers(display_name)",
-    )
-    .eq("customer_id", profile.id)
-    .order("appointment_start", { ascending: true })
-    .limit(5);
+  const [
+    { data: bookings },
+    { data: recommendations },
+    { data: recentActivities },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select(
+        "id, appointment_start, price, status, salons(name), services(name), barbers(display_name)",
+      )
+      .eq("customer_id", profile.id)
+      .order("appointment_start", { ascending: true })
+      .limit(5),
+    supabase.rpc("get_personalized_recommendations", {
+      p_user_id: profile.id,
+      p_latitude: 6.8918,
+      p_longitude: 79.8732,
+      p_limit: 6,
+    }),
+    supabase.rpc("get_user_recent_activity", {
+      p_user_id: profile.id,
+      p_limit: 4,
+    }),
+  ]);
 
   const upcoming =
     bookings?.filter((b) =>
@@ -111,6 +128,12 @@ export default async function CustomerHomePage() {
           </div>
         )}
       </section>
+
+      {/* Personalized Recommendations based on User Activities */}
+      <CustomerRecommendations
+        recommendations={recommendations ?? []}
+        recentActivities={recentActivities ?? []}
+      />
     </div>
   );
 }

@@ -478,7 +478,7 @@ class _ReviewStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.simpleCurrency();
+    final currency = NumberFormat.currency(symbol: 'LKR ', decimalDigits: 0);
     return ListView(
       padding: const EdgeInsets.all(SnipSpacing.md),
       children: [

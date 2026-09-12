@@ -88,6 +88,9 @@ export interface Salon {
   rejection_reason: string | null;
   is_active: boolean;
   opening_hours: OpeningHours;
+  avg_rating: number;
+  review_count: number;
+  distance_km?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -217,8 +220,59 @@ export interface BookingStatusHistory {
 
 export interface Favorite {
   id: string;
-  customer_id: string;
+  user_id: string;
   salon_id: string;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  booking_id: string;
+  salon_id: string;
+  barber_id: string | null;
+  customer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type UserActivityType =
+  | "view_salon"
+  | "view_service"
+  | "search"
+  | "favorite_salon"
+  | "book_appointment"
+  | "review_salon";
+
+export interface UserActivity {
+  id: string;
+  user_id: string;
+  activity_type: UserActivityType;
+  salon_id: string | null;
+  service_id: string | null;
+  category: ServiceCategory | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface RecommendedSalon extends Salon {
+  recommendation_score: number;
+  recommendation_reason: string;
+  matched_category: string | null;
+}
+
+export interface UserRecentActivity {
+  id: string;
+  activity_type: UserActivityType;
+  salon_id: string | null;
+  salon_name: string | null;
+  salon_slug: string | null;
+  salon_cover_url: string | null;
+  service_id: string | null;
+  service_name: string | null;
+  category: string | null;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -348,8 +402,14 @@ export type Database = {
       };
       favorites: {
         Row: Favorite;
-        Insert: Partial<Favorite> & Pick<Favorite, "customer_id" | "salon_id">;
+        Insert: Partial<Favorite> & Pick<Favorite, "user_id" | "salon_id">;
         Update: Partial<Favorite>;
+      };
+      reviews: {
+        Row: Review;
+        Insert: Partial<Review> &
+          Pick<Review, "booking_id" | "salon_id" | "customer_id" | "rating">;
+        Update: Partial<Review>;
       };
       notifications: {
         Row: Notification;
@@ -365,6 +425,12 @@ export type Database = {
             "salon_id" | "submitted_by" | "decision"
           >;
         Update: Partial<SalonVerificationRequest>;
+      };
+      user_activities: {
+        Row: UserActivity;
+        Insert: Partial<UserActivity> &
+          Pick<UserActivity, "user_id" | "activity_type">;
+        Update: Partial<UserActivity>;
       };
     };
     Enums: {
@@ -412,6 +478,20 @@ export type Database = {
         };
         Returns: Booking;
       };
+      submit_booking_review: {
+        Args: {
+          p_booking_id: string;
+          p_rating: number;
+          p_comment?: string | null;
+        };
+        Returns: {
+          review_id: string;
+          booking_id: string;
+          salon_id: string;
+          rating: number;
+          success: boolean;
+        };
+      };
       search_salons: {
         Args: {
           p_query?: string | null;
@@ -422,6 +502,43 @@ export type Database = {
           p_offset?: number;
         };
         Returns: Salon[];
+      };
+      get_nearby_salons: {
+        Args: {
+          p_latitude: number;
+          p_longitude: number;
+          p_radius_km?: number;
+          p_category?: ServiceCategory | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: Salon[];
+      };
+      log_user_activity: {
+        Args: {
+          p_activity_type: UserActivityType;
+          p_salon_id?: string | null;
+          p_service_id?: string | null;
+          p_category?: ServiceCategory | null;
+          p_metadata?: Record<string, unknown>;
+        };
+        Returns: string | null;
+      };
+      get_personalized_recommendations: {
+        Args: {
+          p_user_id?: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+          p_limit?: number;
+        };
+        Returns: RecommendedSalon[];
+      };
+      get_user_recent_activity: {
+        Args: {
+          p_user_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: UserRecentActivity[];
       };
     };
   };

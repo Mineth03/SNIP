@@ -70,6 +70,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/SNIP-main-logo.png
+    - assets/SNIP-dark-mode-logo.png
+    - assets/long-logo-original.png
+    - assets/long-logo-dark-mode.png
+    - assets/login-back-light.png
+    - assets/login-back-dark.png
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
