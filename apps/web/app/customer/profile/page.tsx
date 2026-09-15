@@ -10,7 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUploader } from "@/components/ui/image-uploader";
+import { BecomeOwnerCard } from "@/components/snip/become-owner-card";
+import { RoleSwitcher } from "@/components/snip/role-switcher";
 import { createClient } from "@/lib/supabase/client";
+import type { AppCapability } from "@/lib/auth/roles";
+import type { UserRole } from "@/types/database";
 
 const schema = z.object({
   full_name: z.string().min(2, "Name is required"),
@@ -25,6 +29,8 @@ export default function CustomerProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [capabilities, setCapabilities] = useState<AppCapability[]>(["customer"]);
+  const [activeRole, setActiveRole] = useState<UserRole>("customer");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -40,19 +46,26 @@ export default function CustomerProfilePage() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, phone, city, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data }, { data: caps }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, phone, city, avatar_url, active_role, role")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.rpc("user_capabilities", { p_uid: user.id }),
+      ]);
 
       if (data) {
         setAvatarUrl(data.avatar_url ?? "");
+        setActiveRole((data.active_role ?? data.role ?? "customer") as UserRole);
         form.reset({
           full_name: data.full_name ?? "",
           phone: data.phone ?? "",
           city: data.city ?? "",
         });
+      }
+      if (Array.isArray(caps)) {
+        setCapabilities(caps as AppCapability[]);
       }
       setLoading(false);
     }
@@ -92,9 +105,17 @@ export default function CustomerProfilePage() {
           Customer Profile
         </h2>
         <p className="text-sm text-snip-muted">
-          Manage your personal details and photo.
+          Manage your personal details and switch between profile views.
         </p>
       </div>
+
+      <Card className="rounded-2xl border border-snip-border shadow-snip-sm">
+        <CardContent className="p-5">
+          <RoleSwitcher capabilities={capabilities} activeRole={activeRole} />
+        </CardContent>
+      </Card>
+
+      <BecomeOwnerCard alreadyOwner={capabilities.includes("salon_owner")} />
 
       <Card className="rounded-2xl border border-snip-border shadow-snip-sm">
         <CardHeader>
@@ -104,9 +125,8 @@ export default function CustomerProfilePage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Avatar uploader */}
             <div>
-              <label className="block text-xs font-semibold text-snip-charcoal mb-2">
+              <label className="mb-2 block text-xs font-semibold text-snip-charcoal">
                 Profile Photo
               </label>
               <ImageUploader
@@ -123,11 +143,7 @@ export default function CustomerProfilePage() {
 
             <div>
               <Label htmlFor="full_name">Full Name</Label>
-              <Input
-                id="full_name"
-                {...form.register("full_name")}
-                className="mt-1"
-              />
+              <Input id="full_name" {...form.register("full_name")} className="mt-1" />
             </div>
 
             <div>

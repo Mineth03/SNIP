@@ -7,17 +7,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, Phone, Store, User } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { getRoleHome } from "@/lib/auth/roles";
-import type { UserRole } from "@/types/database";
 
 const schema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
   email: z.string().email("Enter a valid email address"),
   phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["customer", "salon_owner"]),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -25,8 +22,6 @@ type FormValues = z.infer<typeof schema>;
 export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole =
-    searchParams.get("role") === "salon_owner" ? "salon_owner" : "customer";
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -37,17 +32,15 @@ export function RegisterForm() {
       email: "",
       phone: "",
       password: "",
-      role: initialRole,
     },
   });
-
-  const selectedRole = form.watch("role");
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
     try {
       const supabase = createClient();
       const origin = window.location.origin;
+      const inviteToken = searchParams.get("invite");
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -56,7 +49,7 @@ export function RegisterForm() {
           data: {
             full_name: values.full_name,
             phone: values.phone || null,
-            role: values.role,
+            role: "customer",
           },
         },
       });
@@ -71,19 +64,27 @@ export function RegisterForm() {
             template: "welcome",
             data: {
               name: values.full_name,
-              ctaUrl: `${origin}${getRoleHome(values.role as UserRole)}`,
+              ctaUrl: `${origin}/customer`,
             },
           }),
         }).catch(() => undefined);
 
         toast.success("Welcome to SNIP! Account created successfully.");
-        router.push(getRoleHome(values.role));
+        if (inviteToken) {
+          router.push(`/invite/barber?token=${encodeURIComponent(inviteToken)}`);
+        } else {
+          router.push("/customer");
+        }
         router.refresh();
         return;
       }
 
       toast.success("Please check your email to confirm your account");
-      router.push("/login");
+      router.push(
+        inviteToken
+          ? `/login?next=${encodeURIComponent(`/invite/barber?token=${inviteToken}`)}`
+          : "/login",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to register");
     } finally {
@@ -93,36 +94,6 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
-      {/* Role Selector Pills */}
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 dark:bg-slate-800">
-        <button
-          type="button"
-          onClick={() => form.setValue("role", "customer")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-            selectedRole === "customer"
-              ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-              : "text-slate-500 hover:text-slate-800 dark:text-slate-400"
-          }`}
-        >
-          <User className="h-3.5 w-3.5 text-snip-teal" />
-          <span>Client / Customer</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => form.setValue("role", "salon_owner")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
-            selectedRole === "salon_owner"
-              ? "bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white"
-              : "text-slate-500 hover:text-slate-800 dark:text-slate-400"
-          }`}
-        >
-          <Store className="h-3.5 w-3.5 text-snip-teal" />
-          <span>Salon Owner</span>
-        </button>
-      </div>
-
-      {/* Full Name */}
       <div>
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -143,7 +114,6 @@ export function RegisterForm() {
         ) : null}
       </div>
 
-      {/* Email Address */}
       <div>
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -165,7 +135,6 @@ export function RegisterForm() {
         ) : null}
       </div>
 
-      {/* Phone (Optional) */}
       <div>
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -181,7 +150,6 @@ export function RegisterForm() {
         </div>
       </div>
 
-      {/* Password */}
       <div>
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -211,7 +179,6 @@ export function RegisterForm() {
         ) : null}
       </div>
 
-      {/* Submit Button */}
       <button
         type="submit"
         disabled={loading}
@@ -230,7 +197,6 @@ export function RegisterForm() {
         )}
       </button>
 
-      {/* Divider */}
       <div className="relative my-3">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200 dark:border-slate-800" />
@@ -242,7 +208,6 @@ export function RegisterForm() {
         </div>
       </div>
 
-      {/* Sign In Link */}
       <div className="text-center">
         <Link
           href="/login"

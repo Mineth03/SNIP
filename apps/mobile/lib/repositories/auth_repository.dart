@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase.dart';
-import '../models/profile.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(supabase);
@@ -28,18 +27,14 @@ class AuthRepository {
     required String email,
     required String password,
     required String fullName,
-    required UserRole role,
     String? phone,
   }) {
-    final allowedRole =
-        role == UserRole.salonOwner ? UserRole.salonOwner : UserRole.customer;
-
     return _client.auth.signUp(
       email: email,
       password: password,
       data: {
         'full_name': fullName,
-        'role': userRoleToString(allowedRole),
+        'role': 'customer',
         if (phone != null && phone.isNotEmpty) 'phone': phone,
       },
     );

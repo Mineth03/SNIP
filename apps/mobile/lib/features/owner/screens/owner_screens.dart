@@ -6,11 +6,12 @@ import 'package:intl/intl.dart';
 import '../../../models/booking.dart';
 import '../../../models/service.dart';
 import '../../../repositories/booking_repository.dart';
+import '../../../repositories/profile_repository.dart';
 import '../../../repositories/salon_repository.dart';
-import '../../../shared/widgets/barber_card.dart';
 import '../../../shared/widgets/booking_card.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
+import '../../../shared/widgets/role_widgets.dart';
 import '../../../shared/widgets/service_card.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_logo.dart';
@@ -104,8 +105,22 @@ final ownerServicesProvider = FutureProvider.autoDispose((ref) async {
 
 final ownerStaffProvider = FutureProvider.autoDispose((ref) async {
   final salon = await ref.watch(ownerSalonProvider.future);
-  if (salon == null) return [];
-  return ref.watch(salonRepositoryProvider).getBarbers(salon.id);
+  if (salon == null) return <({dynamic barber, bool linked})>[];
+  final barbers =
+      await ref.watch(salonRepositoryProvider).getBarbers(salon.id);
+  return barbers
+      .map((b) => (barber: b, linked: b.profileId != null))
+      .toList();
+});
+
+final ownerPendingInvitesProvider = FutureProvider.autoDispose((ref) async {
+  final salon = await ref.watch(ownerSalonProvider.future);
+  if (salon == null) return <Map<String, dynamic>>[];
+  final members =
+      await ref.watch(salonRepositoryProvider).getSalonMemberInvites(salon.id);
+  return members
+      .where((m) => m['invitation_accepted_at'] == null && m['is_active'] == true)
+      .toList();
 });
 
 class OwnerDashboardScreen extends ConsumerWidget {
@@ -889,35 +904,220 @@ class OwnerServicesScreen extends ConsumerWidget {
   }
 }
 
-class OwnerStaffScreen extends ConsumerWidget {
+class OwnerStaffScreen extends ConsumerStatefulWidget {
   const OwnerStaffScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OwnerStaffScreen> createState() => _OwnerStaffScreenState();
+}
+
+class _OwnerStaffScreenState extends ConsumerState<OwnerStaffScreen> {
+  final _email = TextEditingController();
+  final _displayName = TextEditingController();
+  bool _inviting = false;
+  String? _lastInviteLink;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _displayName.dispose();
+    super.dispose();
+  }
+
+  Future<void> _invite() async {
+    final salon = await ref.read(ownerSalonProvider.future);
+    if (salon == null || !mounted) return;
+    final email = _email.text.trim();
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid email')),
+      );
+      return;
+    }
+    setState(() => _inviting = true);
+    try {
+      final token = await ref.read(profileRepositoryProvider).inviteBarberToSalon(
+            salonId: salon.id,
+            email: email,
+            displayName: _displayName.text.trim().isEmpty
+                ? null
+                : _displayName.text.trim(),
+          );
+      if (!mounted) return;
+      setState(() {
+        _lastInviteLink = '/invite/barber?token=$token';
+        _email.clear();
+        _displayName.clear();
+      });
+      ref.invalidate(ownerStaffProvider);
+      ref.invalidate(ownerPendingInvitesProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invite created')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _inviting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(ownerStaffProvider);
+    final pendingAsync = ref.watch(ownerPendingInvitesProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Staff')),
-      body: async.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(SnipSpacing.md),
-          child: ListSkeleton(),
-        ),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (staff) {
-          if (staff.isEmpty) {
-            return const EmptyState(
-              title: 'No staff yet',
-              message: 'Add barbers from your salon dashboard.',
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(SnipSpacing.md),
-            itemCount: staff.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: SnipSpacing.sm),
-            itemBuilder: (context, index) => BarberCard(barber: staff[index]),
-          );
-        },
+      body: ListView(
+        padding: const EdgeInsets.all(SnipSpacing.md),
+        children: [
+          Text(
+            'Invite barber',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: SnipSpacing.sm),
+          TextField(
+            controller: _displayName,
+            decoration: const InputDecoration(
+              labelText: 'Display name (optional)',
+            ),
+          ),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Email'),
+          ),
+          const SizedBox(height: SnipSpacing.sm),
+          FilledButton(
+            onPressed: _inviting ? null : _invite,
+            child: Text(_inviting ? 'Inviting...' : 'Send invite'),
+          ),
+          if (_lastInviteLink != null) ...[
+            const SizedBox(height: SnipSpacing.sm),
+            SelectableText(
+              'Invite link: $_lastInviteLink',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: SnipSpacing.lg),
+          Text(
+            'Pending invites',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          pendingAsync.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text('$e'),
+            data: (pending) {
+              if (pending.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('No pending invites'),
+                );
+              }
+              return Column(
+                children: pending
+                    .map(
+                      (m) => ListTile(
+                        title: Text(m['invited_email']?.toString() ?? 'Invite'),
+                        subtitle: Text(
+                          m['invitation_token'] != null
+                              ? '/invite/barber?token=${m['invitation_token']}'
+                              : 'Pending',
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+          const SizedBox(height: SnipSpacing.md),
+          Text(
+            'Team',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          async.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(SnipSpacing.md),
+              child: ListSkeleton(),
+            ),
+            error: (e, _) => Text('$e'),
+            data: (staff) {
+              if (staff.isEmpty) {
+                return const EmptyState(
+                  title: 'No staff yet',
+                  message: 'Invite barbers by email above.',
+                );
+              }
+              return Column(
+                children: staff.map((row) {
+                  final barber = row.barber;
+                  return Card(
+                    child: ListTile(
+                      title: Text(barber.displayName),
+                      subtitle: Text(
+                        row.linked ? 'Linked account' : 'Unlinked / pending',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.person_remove_outlined,
+                            color: SnipColors.error),
+                        onPressed: () async {
+                          final salon =
+                              await ref.read(ownerSalonProvider.future);
+                          if (salon == null || !context.mounted) return;
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              title: const Text('Remove barber?'),
+                              content: Text(
+                                'Remove ${barber.displayName} from this salon only.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(d, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(d, true),
+                                  child: const Text('Remove'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok != true) return;
+                          try {
+                            await ref
+                                .read(profileRepositoryProvider)
+                                .removeBarberFromSalon(
+                                  salonId: salon.id,
+                                  barberId: barber.id,
+                                );
+                            ref.invalidate(ownerStaffProvider);
+                            ref.invalidate(ownerPendingInvitesProvider);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('$e')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -932,12 +1132,15 @@ class OwnerMoreScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('More')),
       body: ListView(
+        padding: const EdgeInsets.all(SnipSpacing.md),
         children: [
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: Text(profile?.fullName ?? 'Owner'),
             subtitle: Text(profile?.email ?? ''),
           ),
+          const RoleSwitcherCard(),
+          const SizedBox(height: SnipSpacing.md),
           ListTile(
             leading: const Icon(Icons.qr_code_scanner),
             title: const Text('Scan check-in QR'),

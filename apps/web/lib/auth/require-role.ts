@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
-import { getProfile } from "@/lib/auth/get-profile";
-import { getRoleHome } from "@/lib/auth/roles";
+import { getProfileWithCapabilities } from "@/lib/auth/capabilities";
+import {
+  getActiveRoleHome,
+  type AppCapability,
+} from "@/lib/auth/roles";
 import type { Profile, UserRole } from "@/types/database";
 
 export async function requireUser(): Promise<Profile> {
-  const profile = await getProfile();
+  const profile = await getProfileWithCapabilities();
   if (!profile) {
     redirect("/login");
   }
@@ -14,11 +17,43 @@ export async function requireUser(): Promise<Profile> {
 export async function requireRole(
   allowed: UserRole | UserRole[],
 ): Promise<Profile> {
-  const profile = await requireUser();
-  const roles = Array.isArray(allowed) ? allowed : [allowed];
+  const profile = await getProfileWithCapabilities();
+  if (!profile) {
+    redirect("/login");
+  }
 
-  if (!roles.includes(profile.role) && profile.role !== "admin") {
-    redirect(getRoleHome(profile.role));
+  const roles = (Array.isArray(allowed) ? allowed : [allowed]) as AppCapability[];
+  const caps = profile.capabilities;
+
+  if (caps.includes("admin")) {
+    return profile;
+  }
+
+  const allowedOk = roles.some((role) => {
+    if (role === "customer") return true;
+    return caps.includes(role);
+  });
+
+  if (!allowedOk) {
+    redirect(getActiveRoleHome(profile.active_role));
+  }
+
+  return profile;
+}
+
+export async function requireCapability(
+  required: AppCapability | AppCapability[],
+): Promise<Profile> {
+  const profile = await getProfileWithCapabilities();
+  if (!profile) {
+    redirect("/login");
+  }
+
+  const needed = Array.isArray(required) ? required : [required];
+  if (profile.capabilities.includes("admin")) return profile;
+
+  if (!needed.some((c) => profile.capabilities.includes(c) || c === "customer")) {
+    redirect(getActiveRoleHome(profile.active_role));
   }
 
   return profile;

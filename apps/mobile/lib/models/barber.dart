@@ -82,3 +82,36 @@ class BarberSchedule extends Equatable {
   @override
   List<Object?> get props => [id, dayOfWeek, startTime, endTime, isWorking];
 }
+
+class BarberSalonMembership extends Equatable {
+  const BarberSalonMembership({
+    required this.salonId,
+    required this.salonName,
+    required this.barberId,
+  });
+
+  final String salonId;
+  final String salonName;
+  final String barberId;
+
+  @override
+  List<Object?> get props => [salonId, salonName, barberId];
+}
+
+class ActiveBarberContext extends Equatable {
+  const ActiveBarberContext({
+    required this.barber,
+    required this.salonName,
+    required this.memberships,
+  });
+
+  final Barber barber;
+  final String salonName;
+  final List<BarberSalonMembership> memberships;
+
+  String get salonId => barber.salonId;
+  String get barberId => barber.id;
+
+  @override
+  List<Object?> get props => [barber, salonName, memberships];
+}

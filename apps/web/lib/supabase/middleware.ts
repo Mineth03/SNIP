@@ -1,7 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { UserRole } from "@/types/database";
-import { canAccessPath, getRoleHome } from "@/lib/auth/roles";
+import {
+  canAccessPathWithCapabilities,
+  getActiveRoleHome,
+  type AppCapability,
+} from "@/lib/auth/roles";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -54,23 +58,46 @@ export async function updateSession(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, active_role")
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = ((profile as { role?: UserRole } | null)?.role ??
+    const activeRole = ((profile as { active_role?: UserRole; role?: UserRole } | null)
+      ?.active_role ??
+      (profile as { role?: UserRole } | null)?.role ??
       "customer") as UserRole;
+
+    let capabilities: AppCapability[] = ["customer"];
+    const { data: caps } = await supabase.rpc("user_capabilities", {
+      p_uid: user.id,
+    });
+    if (Array.isArray(caps)) {
+      capabilities = caps as AppCapability[];
+    } else {
+      // Fallback before migration is applied
+      if (activeRole === "admin" || (profile as { role?: string } | null)?.role === "admin") {
+        capabilities = ["customer", "salon_owner", "barber", "admin"];
+      } else if (activeRole === "salon_owner" || (profile as { role?: string } | null)?.role === "salon_owner") {
+        capabilities = ["customer", "salon_owner"];
+      } else if (activeRole === "barber" || (profile as { role?: string } | null)?.role === "barber") {
+        capabilities = ["customer", "barber"];
+      }
+    }
 
     if (isAuthRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = getRoleHome(role);
+      url.pathname = getActiveRoleHome(
+        capabilities.includes(activeRole as AppCapability) ? activeRole : "customer",
+      );
       url.search = "";
       return NextResponse.redirect(url);
     }
 
-    if (!canAccessPath(pathname, role)) {
+    if (!canAccessPathWithCapabilities(pathname, capabilities)) {
       const url = request.nextUrl.clone();
-      url.pathname = getRoleHome(role);
+      url.pathname = getActiveRoleHome(
+        capabilities.includes(activeRole as AppCapability) ? activeRole : "customer",
+      );
       url.search = "";
       return NextResponse.redirect(url);
     }

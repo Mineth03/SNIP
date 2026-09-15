@@ -211,14 +211,74 @@ class SalonRepository {
   }
 
   Future<Barber?> getBarberByProfile(String profileId) async {
+    final ctx = await getActiveBarberContext(profileId);
+    return ctx?.barber;
+  }
+
+  /// All active salon memberships for a barber profile, with preferred salon.
+  Future<ActiveBarberContext?> getActiveBarberContext(
+    String profileId, {
+    String? preferredSalonId,
+  }) async {
     final data = await _client
         .from('barbers')
-        .select()
+        .select('*, salons(name)')
         .eq('profile_id', profileId)
         .eq('is_active', true)
-        .maybeSingle();
-    if (data == null) return null;
-    return Barber.fromJson(data);
+        .order('created_at');
+
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) return null;
+
+    final memberships = <BarberSalonMembership>[];
+    Barber? preferred;
+    Barber? first;
+
+    for (final raw in rows) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      final salonRaw = map.remove('salons');
+      final barber = Barber.fromJson(map);
+      first ??= barber;
+      String salonName = 'Salon';
+      if (salonRaw is Map) {
+        salonName = salonRaw['name'] as String? ?? 'Salon';
+      }
+      memberships.add(
+        BarberSalonMembership(
+          salonId: barber.salonId,
+          salonName: salonName,
+          barberId: barber.id,
+        ),
+      );
+      if (preferredSalonId != null && barber.salonId == preferredSalonId) {
+        preferred = barber;
+      }
+    }
+
+    final active = preferred ?? first!;
+    final activeMembership = memberships.firstWhere(
+      (m) => m.barberId == active.id,
+      orElse: () => memberships.first,
+    );
+
+    return ActiveBarberContext(
+      barber: active,
+      salonName: activeMembership.salonName,
+      memberships: memberships,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getSalonMemberInvites(String salonId) async {
+    final data = await _client
+        .from('salon_members')
+        .select(
+          'id, invited_email, invitation_token, invitation_accepted_at, is_active, profile_id',
+        )
+        .eq('salon_id', salonId)
+        .eq('member_role', 'barber');
+    return (data as List<dynamic>)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   Future<Barber> createBarber(Barber barber) async {

@@ -1,6 +1,7 @@
-import { CalendarDays } from "lucide-react";
+import { BarberSalonSwitcher } from "@/components/snip/barber-salon-switcher";
 import { BookingCard } from "@/components/snip/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getActiveBarberContext } from "@/lib/auth/barber-context";
 import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import type { BookingStatus } from "@/types/database";
@@ -10,15 +11,16 @@ export const metadata = { title: "Appointments" };
 export default async function BarberAppointmentsPage() {
   const profile = await requireRole(["barber", "admin"]);
   const supabase = await createClient();
-  const { data: barber } = await supabase
-    .from("barbers")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const ctx = await getActiveBarberContext(profile);
 
-  if (!barber) {
+  if (!ctx) {
     return (
-      <EmptyState title="Barber profile not linked" description="Contact your salon owner." />
+      <EmptyState
+        title="You’re not on a salon team yet"
+        description="Contact a salon owner for an invite."
+        actionLabel="Customer home"
+        actionHref="/customer"
+      />
     );
   }
 
@@ -27,18 +29,22 @@ export default async function BarberAppointmentsPage() {
     .select(
       "id, appointment_start, price, status, services(name), profiles:customer_id(full_name)",
     )
-    .eq("barber_id", barber.id)
+    .eq("barber_id", ctx.barberId)
     .order("appointment_start", { ascending: false })
     .limit(40);
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="space-y-2">
         <h2 className="text-2xl font-semibold text-snip-charcoal">Appointments</h2>
-        <p className="text-sm text-snip-muted">All bookings assigned to you.</p>
+        <p className="text-sm text-snip-muted">Bookings for your active salon chair.</p>
+        <BarberSalonSwitcher
+          memberships={ctx.memberships}
+          activeSalonId={ctx.salonId}
+        />
       </div>
       {!appointments?.length ? (
-        <EmptyState icon={CalendarDays} title="No appointments yet" />
+        <EmptyState title="No appointments" description="New bookings will show up here." />
       ) : (
         <div className="space-y-3">
           {appointments.map((booking) => {
@@ -59,7 +65,6 @@ export default async function BarberAppointmentsPage() {
                 start={row.appointment_start}
                 price={row.price}
                 status={row.status}
-                canManage={true}
               />
             );
           })}

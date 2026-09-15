@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/booking.dart';
+import '../../../models/barber.dart';
 import '../../../repositories/booking_repository.dart';
+import '../../../repositories/profile_repository.dart';
 import '../../../repositories/salon_repository.dart';
 import '../../../shared/widgets/booking_card.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
+import '../../../shared/widgets/role_widgets.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../shared/widgets/status_chip.dart';
@@ -61,10 +64,19 @@ class BarberShell extends StatelessWidget {
   }
 }
 
-final barberProfileProvider = FutureProvider.autoDispose((ref) async {
+final barberContextProvider =
+    FutureProvider.autoDispose<ActiveBarberContext?>((ref) async {
   final profile = await ref.watch(currentProfileProvider.future);
   if (profile == null) return null;
-  return ref.watch(salonRepositoryProvider).getBarberByProfile(profile.id);
+  return ref.watch(salonRepositoryProvider).getActiveBarberContext(
+        profile.id,
+        preferredSalonId: profile.activeBarberSalonId,
+      );
+});
+
+final barberProfileProvider = FutureProvider.autoDispose((ref) async {
+  final ctx = await ref.watch(barberContextProvider.future);
+  return ctx?.barber;
 });
 
 final barberTodayProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
@@ -76,7 +88,8 @@ final barberTodayProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
       );
 });
 
-final barberAppointmentsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+final barberAppointmentsProvider =
+    StreamProvider.autoDispose<List<Booking>>((ref) {
   final barber = ref.watch(barberProfileProvider).valueOrNull;
   if (barber == null) return Stream.value(<Booking>[]);
   return ref.watch(bookingRepositoryProvider).streamBarberBookings(barber.id);
@@ -176,6 +189,31 @@ class _BarberDashboardScreenState extends ConsumerState<BarberDashboardScreen> {
               ),
 
               const SizedBox(height: SnipSpacing.md),
+
+              Builder(
+                builder: (context) {
+                  final ctx = ref.watch(barberContextProvider).valueOrNull;
+                  if (ctx == null) {
+                    return const EmptyState(
+                      title: 'Not on a salon team',
+                      message:
+                          'Wait for an owner invite, or switch back to Customer from Profile.',
+                    );
+                  }
+                  return BarberSalonSwitcher(
+                    activeSalonId: ctx.salonId,
+                    memberships: ctx.memberships
+                        .map(
+                          (m) => (
+                            salonId: m.salonId,
+                            salonName: m.salonName,
+                            barberId: m.barberId,
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
 
               // Filter pills: [ Today (5) ] [ Upcoming ]
               Row(
@@ -595,32 +633,60 @@ class BarberAppointmentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(barberAppointmentsProvider);
+    final ctx = ref.watch(barberContextProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('Appointments')),
-      body: async.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(SnipSpacing.md),
-          child: ListSkeleton(),
-        ),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (bookings) {
-          if (bookings.isEmpty) {
-            return const EmptyState(title: 'No appointments');
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(SnipSpacing.md),
-            itemCount: bookings.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: SnipSpacing.sm),
-            itemBuilder: (context, index) {
-              final booking = bookings[index];
-              return BookingCard(
-                booking: booking,
-                trailing: _StatusActions(booking: booking),
-              );
-            },
-          );
-        },
+      body: Column(
+        children: [
+          if (ctx != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                SnipSpacing.md,
+                SnipSpacing.sm,
+                SnipSpacing.md,
+                0,
+              ),
+              child: BarberSalonSwitcher(
+                activeSalonId: ctx.salonId,
+                memberships: ctx.memberships
+                    .map(
+                      (m) => (
+                        salonId: m.salonId,
+                        salonName: m.salonName,
+                        barberId: m.barberId,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          Expanded(
+            child: async.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(SnipSpacing.md),
+                child: ListSkeleton(),
+              ),
+              error: (e, _) => Center(child: Text('$e')),
+              data: (bookings) {
+                if (bookings.isEmpty) {
+                  return const EmptyState(title: 'No appointments');
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(SnipSpacing.md),
+                  itemCount: bookings.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: SnipSpacing.sm),
+                  itemBuilder: (context, index) {
+                    final booking = bookings[index];
+                    return BookingCard(
+                      booking: booking,
+                      trailing: _StatusActions(booking: booking),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -666,47 +732,78 @@ class BarberScheduleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(barberScheduleProvider);
+    final ctx = ref.watch(barberContextProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('Schedule')),
-      body: async.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(SnipSpacing.md),
-          child: ListSkeleton(),
-        ),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (schedules) {
-          if (schedules.isEmpty) {
-            return const EmptyState(
-              title: 'No schedule set',
-              message: 'Ask your salon owner to configure your hours.',
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(SnipSpacing.md),
-            itemCount: schedules.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: SnipSpacing.sm),
-            itemBuilder: (context, index) {
-              final s = schedules[index];
-              return ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SnipSpacing.radiusMd),
-                  side: const BorderSide(color: SnipColors.border),
-                ),
-                title: Text(_capitalize(s.dayOfWeek)),
-                subtitle: Text(
-                  s.isWorking
-                      ? '${s.startTime} – ${s.endTime}'
-                      : 'Off',
-                ),
-                trailing: Icon(
-                  s.isWorking ? Icons.check_circle : Icons.cancel_outlined,
-                  color: s.isWorking ? SnipColors.success : SnipColors.secondaryText,
-                ),
-              );
-            },
-          );
-        },
+      body: Column(
+        children: [
+          if (ctx != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                SnipSpacing.md,
+                SnipSpacing.sm,
+                SnipSpacing.md,
+                0,
+              ),
+              child: BarberSalonSwitcher(
+                activeSalonId: ctx.salonId,
+                memberships: ctx.memberships
+                    .map(
+                      (m) => (
+                        salonId: m.salonId,
+                        salonName: m.salonName,
+                        barberId: m.barberId,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          Expanded(
+            child: async.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(SnipSpacing.md),
+                child: ListSkeleton(),
+              ),
+              error: (e, _) => Center(child: Text('$e')),
+              data: (schedules) {
+                if (schedules.isEmpty) {
+                  return const EmptyState(
+                    title: 'No schedule set',
+                    message: 'Ask your salon owner to configure your hours.',
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(SnipSpacing.md),
+                  itemCount: schedules.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: SnipSpacing.sm),
+                  itemBuilder: (context, index) {
+                    final s = schedules[index];
+                    return ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(SnipSpacing.radiusMd),
+                        side: const BorderSide(color: SnipColors.border),
+                      ),
+                      title: Text(_capitalize(s.dayOfWeek)),
+                      subtitle: Text(
+                        s.isWorking ? '${s.startTime} – ${s.endTime}' : 'Off',
+                      ),
+                      trailing: Icon(
+                        s.isWorking
+                            ? Icons.check_circle
+                            : Icons.cancel_outlined,
+                        color: s.isWorking
+                            ? SnipColors.success
+                            : SnipColors.secondaryText,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -721,14 +818,31 @@ class BarberProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentProfileProvider).valueOrNull;
+    final ctx = ref.watch(barberContextProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
+        padding: const EdgeInsets.all(SnipSpacing.md),
         children: [
           ListTile(
             title: Text(profile?.fullName ?? 'Barber'),
             subtitle: Text(profile?.email ?? ''),
           ),
+          if (ctx != null)
+            BarberSalonSwitcher(
+              activeSalonId: ctx.salonId,
+              memberships: ctx.memberships
+                  .map(
+                    (m) => (
+                      salonId: m.salonId,
+                      salonName: m.salonName,
+                      barberId: m.barberId,
+                    ),
+                  )
+                  .toList(),
+            ),
+          const RoleSwitcherCard(),
+          const SizedBox(height: SnipSpacing.md),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
             title: const Text('Edit profile'),
@@ -739,12 +853,66 @@ class BarberProfileScreen extends ConsumerWidget {
             title: const Text('Notifications'),
             onTap: () => context.push('/notifications'),
           ),
+          if (ctx != null) ...[
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: SnipColors.error),
+              title: Text(
+                'Resign from ${ctx.salonName}',
+                style: const TextStyle(color: SnipColors.error),
+              ),
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctxDialog) => AlertDialog(
+                    title: const Text('Resign from salon?'),
+                    content: Text(
+                      'You’ll leave ${ctx.salonName}. Other salon jobs and your customer account stay intact.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctxDialog, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctxDialog, true),
+                        child: const Text('Resign'),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
+                try {
+                  await ref
+                      .read(profileRepositoryProvider)
+                      .resignFromSalon(ctx.salonId);
+                  ref.invalidate(currentProfileProvider);
+                  ref.invalidate(barberContextProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Left salon team')),
+                    );
+                    context.go('/customer/home');
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('$e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
           const Divider(),
           const ThemeModeListTile(),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: SnipColors.error),
-            title: const Text('Sign out', style: TextStyle(color: SnipColors.error)),
+            title: const Text(
+              'Sign out',
+              style: TextStyle(color: SnipColors.error),
+            ),
             onTap: () => ref.read(authControllerProvider.notifier).signOut(),
           ),
         ],
