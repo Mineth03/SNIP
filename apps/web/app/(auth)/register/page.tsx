@@ -9,7 +9,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Sign up to book appointments, manage your salon, and keep beauty moving."
+      subtitle="Join SNIP as a customer. You can become a salon owner or join a salon team later from your profile."
       mode="register"
     >
       <Suspense fallback={<LoadingSkeleton rows={4} />}>

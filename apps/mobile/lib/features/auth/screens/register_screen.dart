@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../models/profile.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../shared/widgets/snip_logo.dart';
 import '../../../shared/widgets/snip_text_field.dart';
@@ -24,7 +23,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
-  UserRole _role = UserRole.customer;
   bool _obscure = true;
 
   @override
@@ -42,7 +40,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: _email.text.trim(),
           password: _password.text,
           fullName: _name.text.trim(),
-          role: _role,
           phone: _phone.text.trim(),
         );
     final state = ref.read(authControllerProvider);
@@ -102,15 +99,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: SnipSpacing.xs),
                     Center(
                       child: Text(
-                        'Join thousands of satisfied clients and salons',
+                        'Create your customer account — book salons anytime',
+                        textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: SnipColors.secondaryText,
                         ),
                       ),
                     ),
                     const SizedBox(height: SnipSpacing.lg),
-
-                    // Auth Card
                     Container(
                       padding: const EdgeInsets.all(SnipSpacing.lg),
                       decoration: BoxDecoration(
@@ -141,47 +137,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                           ),
                           const SizedBox(height: SnipSpacing.sm),
-
-                          // Role selection cards
                           Text(
-                            'I WANT TO JOIN AS:',
-                            style: theme.textTheme.labelSmall?.copyWith(
+                            'You’ll start as a customer. Salon owners can invite you as a barber, or you can list your own salon from Profile later.',
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: SnipColors.secondaryText,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: SnipSpacing.xs),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _RoleCard(
-                                  label: 'Customer',
-                                  sublabel: 'Book & Queue',
-                                  icon: Icons.person_rounded,
-                                  selected: _role == UserRole.customer,
-                                  isDark: isDark,
-                                  onTap: () => setState(
-                                      () => _role = UserRole.customer),
-                                ),
-                              ),
-                              const SizedBox(width: SnipSpacing.sm),
-                              Expanded(
-                                child: _RoleCard(
-                                  label: 'Salon Owner',
-                                  sublabel: 'Manage Salon',
-                                  icon: Icons.storefront_rounded,
-                                  selected: _role == UserRole.salonOwner,
-                                  isDark: isDark,
-                                  onTap: () => setState(
-                                      () => _role = UserRole.salonOwner),
-                                ),
-                              ),
-                            ],
-                          ),
                           const SizedBox(height: SnipSpacing.md),
-
-                          // Full Name
                           SnipTextField(
                             controller: _name,
                             label: 'Full name',
@@ -192,8 +154,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 : null,
                           ),
                           const SizedBox(height: SnipSpacing.md),
-
-                          // Email
                           SnipTextField(
                             controller: _email,
                             label: 'Email',
@@ -211,8 +171,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: SnipSpacing.md),
-
-                          // Phone
                           SnipTextField(
                             controller: _phone,
                             label: 'Phone (optional)',
@@ -221,8 +179,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             prefixIcon: Icons.phone_outlined,
                           ),
                           const SizedBox(height: SnipSpacing.md),
-
-                          // Password
                           SnipTextField(
                             controller: _password,
                             label: 'Password',
@@ -244,8 +200,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: SnipSpacing.lg),
-
-                          // CTA Button
                           PrimaryCTA(
                             label: 'Create account →',
                             isLoading: authState.isLoading,
@@ -254,10 +208,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: SnipSpacing.lg),
-
-                    // Sign in link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -284,80 +235,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleCard extends StatelessWidget {
-  const _RoleCard({
-    required this.label,
-    required this.sublabel,
-    required this.icon,
-    required this.selected,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  final String label;
-  final String sublabel;
-  final IconData icon;
-  final bool selected;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(SnipSpacing.radiusSm),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(
-          vertical: SnipSpacing.sm,
-          horizontal: SnipSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? SnipColors.primary.withValues(alpha: isDark ? 0.2 : 0.08)
-              : (isDark ? const Color(0xFF1E2D44) : SnipColors.lightGray),
-          borderRadius: BorderRadius.circular(SnipSpacing.radiusSm),
-          border: Border.all(
-            color: selected
-                ? SnipColors.primary
-                : (isDark ? const Color(0xFF324666) : SnipColors.border),
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: selected
-                  ? SnipColors.primary
-                  : (isDark ? Colors.white60 : SnipColors.secondaryText),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: selected
-                    ? SnipColors.primary
-                    : (isDark ? Colors.white : SnipColors.dark),
-              ),
-            ),
-            Text(
-              sublabel,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark ? Colors.white54 : SnipColors.secondaryText,
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -40,7 +40,6 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required String email,
     required String password,
     required String fullName,
-    required UserRole role,
     String? phone,
   }) async {
     state = const AsyncLoading();
@@ -49,7 +48,6 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
         email: email.trim(),
         password: password,
         fullName: fullName.trim(),
-        role: role,
         phone: phone,
       ),
     );

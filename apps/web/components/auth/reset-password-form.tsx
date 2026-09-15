@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { getRoleHome } from "@/lib/auth/roles";
+import { getActiveRoleHome } from "@/lib/auth/roles";
 import type { UserRole } from "@/types/database";
 
 const schema = z
@@ -50,13 +50,14 @@ export function ResetPasswordForm() {
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("active_role, role")
           .eq("id", user.id)
           .maybeSingle();
-        home = getRoleHome(
-          ((profile as { role?: UserRole } | null)?.role ??
-            "customer") as UserRole,
-        );
+        const row = profile as {
+          active_role?: UserRole;
+          role?: UserRole;
+        } | null;
+        home = getActiveRoleHome(row?.active_role ?? row?.role ?? "customer");
       }
 
       toast.success("Password updated successfully!");

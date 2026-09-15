@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/auth/screens/invite_barber_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/barber/screens/barber_screens.dart';
@@ -57,19 +58,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final session = ref.read(authSessionProvider);
       final isAuthenticated = session != null;
-      final role = profileAsync.valueOrNull?.role;
+      final profile = profileAsync.valueOrNull;
 
       if (location == '/splash') {
         if (!isAuthenticated) return '/login';
-        if (profileAsync.hasError || profileAsync.valueOrNull == null) {
+        if (profileAsync.hasError || profile == null) {
           return '/login';
         }
-        return homePathForRole(role);
+        return homePathForRole(profile.effectiveActiveRole);
       }
 
       return roleGuardRedirect(
         isAuthenticated: isAuthenticated,
-        role: role,
+        profile: profile,
         location: location,
       );
     },
@@ -89,6 +90,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/invite/barber',
+        builder: (context, state) => InviteBarberScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

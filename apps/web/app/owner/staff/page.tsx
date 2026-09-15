@@ -20,15 +20,22 @@ const schema = z.object({
   display_name: z.string().min(2),
   bio: z.string().optional(),
   specializations: z.string().optional(),
-  invited_email: z.email().optional().or(z.literal("")),
+  invited_email: z.string().email("Enter a valid email"),
 });
 
 type FormValues = z.infer<typeof schema>;
 
+type MemberRow = Barber & {
+  pending_email?: string | null;
+};
+
 export default function OwnerStaffPage() {
   const [salonId, setSalonId] = useState<string | null>(null);
   const [salonName, setSalonName] = useState("your salon");
-  const [staff, setStaff] = useState<Barber[]>([]);
+  const [staff, setStaff] = useState<MemberRow[]>([]);
+  const [pending, setPending] = useState<
+    { id: string; invited_email: string | null; invitation_token: string | null }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -58,12 +65,30 @@ export default function OwnerStaffPage() {
     }
     setSalonId(salon.id);
     setSalonName(salon.name);
-    const { data } = await supabase
-      .from("barbers")
-      .select("*")
-      .eq("salon_id", salon.id)
-      .order("display_name");
-    setStaff((data as Barber[]) ?? []);
+
+    const [{ data: barbers }, { data: members }] = await Promise.all([
+      supabase
+        .from("barbers")
+        .select("*")
+        .eq("salon_id", salon.id)
+        .order("display_name"),
+      supabase
+        .from("salon_members")
+        .select("id, invited_email, invitation_token, invitation_accepted_at, is_active, profile_id")
+        .eq("salon_id", salon.id)
+        .eq("member_role", "barber"),
+    ]);
+
+    setStaff((barbers as Barber[]) ?? []);
+    setPending(
+      (members ?? [])
+        .filter((m) => !m.invitation_accepted_at && m.is_active)
+        .map((m) => ({
+          id: m.id as string,
+          invited_email: m.invited_email as string | null,
+          invitation_token: m.invitation_token as string | null,
+        })),
+    );
     setLoading(false);
   }
 
@@ -78,37 +103,68 @@ export default function OwnerStaffPage() {
       return;
     }
     const supabase = createClient();
-    const { error } = await supabase.from("barbers").insert({
-      salon_id: salonId,
-      display_name: values.display_name,
-      bio: values.bio || null,
-      specializations: values.specializations
-        ? values.specializations.split(",").map((s) => s.trim()).filter(Boolean)
-        : [],
-      is_active: true,
+    const { data, error } = await supabase.rpc("invite_barber_to_salon", {
+      p_salon_id: salonId,
+      p_email: values.invited_email,
+      p_display_name: values.display_name,
     });
+
     if (error) {
       toast.error(error.message);
       return;
     }
 
-    if (values.invited_email) {
+    const invite = data as {
+      invitation_token?: string;
+      barber_id?: string;
+      email?: string;
+    };
+
+    if (invite.barber_id && (values.bio || values.specializations)) {
+      await supabase
+        .from("barbers")
+        .update({
+          bio: values.bio || null,
+          specializations: values.specializations
+            ? values.specializations.split(",").map((s) => s.trim()).filter(Boolean)
+            : [],
+        })
+        .eq("id", invite.barber_id);
+    }
+
+    if (invite.invitation_token && invite.email) {
       await fetch("/api/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: values.invited_email,
+          to: invite.email,
           template: "staff_invite",
           data: {
             salonName,
-            ctaUrl: `${window.location.origin}/register`,
+            ctaUrl: `${window.location.origin}/invite/barber?token=${invite.invitation_token}`,
           },
         }),
       }).catch(() => undefined);
     }
 
-    toast.success("Staff member added");
+    toast.success("Invitation sent");
     form.reset();
+    await load();
+  }
+
+  async function removeBarber(barberId: string) {
+    if (!salonId) return;
+    if (!window.confirm("Remove this barber from your salon?")) return;
+    const supabase = createClient();
+    const { error } = await supabase.rpc("remove_barber_from_salon", {
+      p_salon_id: salonId,
+      p_barber_id: barberId,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Staff member removed");
     await load();
   }
 
@@ -128,13 +184,14 @@ export default function OwnerStaffPage() {
       <div>
         <h2 className="text-2xl font-semibold text-snip-charcoal">Staff</h2>
         <p className="text-sm text-snip-muted">
-          Manage stylists and invite them to SNIP.
+          Invite stylists by email. They join with their SNIP account and can leave or
+          join other salons later.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Add staff</CardTitle>
+          <CardTitle>Invite staff</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
@@ -143,8 +200,13 @@ export default function OwnerStaffPage() {
               <Input id="display_name" {...form.register("display_name")} />
             </div>
             <div>
-              <Label htmlFor="invited_email">Invite email (optional)</Label>
+              <Label htmlFor="invited_email">Invite email</Label>
               <Input id="invited_email" type="email" {...form.register("invited_email")} />
+              {form.formState.errors.invited_email ? (
+                <p className="mt-1 text-xs text-snip-danger">
+                  {form.formState.errors.invited_email.message}
+                </p>
+              ) : null}
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="specializations">Specializations (comma separated)</Label>
@@ -155,32 +217,65 @@ export default function OwnerStaffPage() {
               <Textarea id="bio" {...form.register("bio")} />
             </div>
             <div>
-              <Button type="submit">Add staff</Button>
+              <Button type="submit">Send invite</Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {staff.length === 0 ? (
-        <EmptyState icon={Users} title="No staff yet" description="Add your first stylist." />
+      {pending.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending invites</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pending.map((row) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between rounded-lg border border-snip-border px-3 py-2 text-sm"
+              >
+                <span>{row.invited_email}</span>
+                <span className="text-xs text-amber-600">Awaiting accept</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {staff.filter((s) => s.is_active).length === 0 ? (
+        <EmptyState icon={Users} title="No active staff yet" description="Invite your first stylist." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {staff.map((member) => (
-            <Card key={member.id}>
-              <CardContent className="flex items-start gap-3 p-5">
-                <Avatar name={member.display_name} src={member.avatar_url} />
-                <div>
-                  <p className="font-semibold text-snip-charcoal">{member.display_name}</p>
-                  <p className="text-sm text-snip-muted">
-                    {member.specializations?.join(", ") || "Stylist"}
-                  </p>
-                  {member.bio ? (
-                    <p className="mt-2 text-sm text-snip-muted">{member.bio}</p>
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {staff
+            .filter((s) => s.is_active)
+            .map((member) => (
+              <Card key={member.id}>
+                <CardContent className="flex items-start gap-3 p-5">
+                  <Avatar name={member.display_name} src={member.avatar_url} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-snip-charcoal">{member.display_name}</p>
+                    <p className="text-sm text-snip-muted">
+                      {member.specializations?.join(", ") || "Stylist"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-snip-muted">
+                      {member.profile_id ? "Linked account" : "Catalog only / unlinked"}
+                    </p>
+                    {member.bio ? (
+                      <p className="mt-2 text-sm text-snip-muted">{member.bio}</p>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => removeBarber(member.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
     </div>

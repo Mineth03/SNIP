@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { getRoleHome } from "@/lib/auth/roles";
+import { getActiveRoleHome } from "@/lib/auth/roles";
 import type { UserRole } from "@/types/database";
 
 const schema = z.object({
@@ -54,15 +54,18 @@ export function LoginForm() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, active_role")
         .eq("id", data.user.id)
         .maybeSingle();
 
-      const role = ((profile as { role?: UserRole } | null)?.role ??
+      const activeRole = ((profile as { active_role?: UserRole; role?: UserRole } | null)
+        ?.active_role ??
+        (profile as { role?: UserRole } | null)?.role ??
         "customer") as UserRole;
+
       const next = searchParams.get("next");
       toast.success("Welcome back to SNIP!");
-      router.push(next && next.startsWith("/") ? next : getRoleHome(role));
+      router.push(next && next.startsWith("/") ? next : getActiveRoleHome(activeRole));
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to sign in");
@@ -73,7 +76,6 @@ export function LoginForm() {
 
   return (
     <div className="space-y-4">
-      {/* Quick Demo Accounts Pill Bar */}
       <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800/80">
         <span className="flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400">
           <Sparkles className="h-3.5 w-3.5 text-snip-teal" />
@@ -98,7 +100,6 @@ export function LoginForm() {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Email Address */}
         <div>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -120,7 +121,6 @@ export function LoginForm() {
           ) : null}
         </div>
 
-        {/* Password */}
         <div>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -149,7 +149,6 @@ export function LoginForm() {
             </p>
           ) : null}
 
-          {/* Forgot Password Link */}
           <div className="mt-2 text-right">
             <Link
               href="/forgot-password"
@@ -160,7 +159,6 @@ export function LoginForm() {
           </div>
         </div>
 
-        {/* Primary Sign In Button */}
         <button
           type="submit"
           disabled={loading}
@@ -180,7 +178,6 @@ export function LoginForm() {
         </button>
       </form>
 
-      {/* Divider */}
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200 dark:border-slate-800" />
@@ -192,7 +189,6 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Register Link */}
       <div className="text-center">
         <Link
           href="/register"

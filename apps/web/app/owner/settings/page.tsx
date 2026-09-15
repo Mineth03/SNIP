@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RoleSwitcher } from "@/components/snip/role-switcher";
 import { createClient } from "@/lib/supabase/client";
+import type { AppCapability } from "@/lib/auth/roles";
+import type { UserRole } from "@/types/database";
 
 const schema = z.object({
   full_name: z.string().min(2),
@@ -21,6 +24,11 @@ type FormValues = z.infer<typeof schema>;
 
 export default function OwnerSettingsPage() {
   const [saving, setSaving] = useState(false);
+  const [capabilities, setCapabilities] = useState<AppCapability[]>([
+    "customer",
+    "salon_owner",
+  ]);
+  const [activeRole, setActiveRole] = useState<UserRole>("salon_owner");
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { full_name: "", phone: "", city: "" },
@@ -33,18 +41,23 @@ export default function OwnerSettingsPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, phone, city")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data }, { data: caps }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, phone, city, active_role, role")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.rpc("user_capabilities", { p_uid: user.id }),
+      ]);
       if (data) {
+        setActiveRole((data.active_role ?? data.role ?? "salon_owner") as UserRole);
         form.reset({
           full_name: data.full_name ?? "",
           phone: data.phone ?? "",
           city: data.city ?? "",
         });
       }
+      if (Array.isArray(caps)) setCapabilities(caps as AppCapability[]);
     }
     load();
   }, [form]);
@@ -78,8 +91,15 @@ export default function OwnerSettingsPage() {
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-snip-charcoal">Settings</h2>
-        <p className="text-sm text-snip-muted">Manage your owner account.</p>
+        <p className="text-sm text-snip-muted">Manage your owner account and profile views.</p>
       </div>
+
+      <Card>
+        <CardContent className="p-5">
+          <RoleSwitcher capabilities={capabilities} activeRole={activeRole} />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>

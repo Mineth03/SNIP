@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../repositories/profile_repository.dart';
 import '../../../repositories/storage_repository.dart';
+import '../../../shared/widgets/role_widgets.dart';
 import '../../../shared/widgets/snip_avatar.dart';
 import '../../../shared/widgets/snip_button.dart';
 import '../../../shared/widgets/snip_card.dart';
@@ -53,6 +54,10 @@ class CustomerProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: SnipSpacing.md),
+          const RoleSwitcherCard(),
+          const SizedBox(height: SnipSpacing.md),
+          const BecomeOwnerCard(),
           const SizedBox(height: SnipSpacing.md),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
